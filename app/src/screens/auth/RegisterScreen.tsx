@@ -2,16 +2,18 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores';
 import { authService } from '../../services';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
-import { COLORS, SPACING, APP_NAME } from '../../utils/constants';
+import { COLORS, SPACING } from '../../utils/constants';
 
 const COUNTDOWN_SECONDS = 60;
 
 export const RegisterScreen: React.FC = () => {
   const navigation = useNavigation();
   const { register } = useAuthStore();
+  const { t } = useTranslation();
 
   const [username, setUsername] = useState('');
   const [nickname, setNickname] = useState('');
@@ -38,7 +40,6 @@ export const RegisterScreen: React.FC = () => {
     }, 1000);
   }, []);
 
-  // Clean up timer on unmount
   React.useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -47,22 +48,21 @@ export const RegisterScreen: React.FC = () => {
 
   const onSendCode = async () => {
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError('Please enter a valid email');
+      setError(t('enter_email'));
       return;
     }
     setSendingCode(true);
     setError('');
     try {
       const res = await authService.sendCode({ email: email.trim() });
-      // 开发模式下 devCode 会返回，提示给用户
       if (res.devCode) {
-        Alert.alert('Dev Mode', `Verification code: ${res.devCode}`);
+        Alert.alert(t('dev_code_title'), t('dev_code_msg', { code: res.devCode }));
       } else {
-        Alert.alert('Success', 'Verification code sent to your email');
+        Alert.alert(t('success'), t('code_sent'));
       }
       startCountdown();
     } catch (err: any) {
-      const msg = err.response?.data?.message || err.message || 'Failed to send code';
+      const msg = err.response?.data?.message || err.message || t('code_sent_failed');
       setError(msg);
     } finally {
       setSendingCode(false);
@@ -70,29 +70,28 @@ export const RegisterScreen: React.FC = () => {
   };
 
   const onRegister = async () => {
-    // Validation
     if (!username.trim() || !password.trim()) {
-      setError('Username and password are required');
+      setError(t('username_password_required'));
       return;
     }
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError('Please enter a valid email');
+      setError(t('enter_email'));
       return;
     }
     if (!emailCode.trim() || emailCode.trim().length !== 6) {
-      setError('Please enter the 6-digit verification code');
+      setError(t('enter_code'));
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError(t('password_mismatch'));
       return;
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError(t('password_too_short'));
       return;
     }
     if (username.length < 2 || username.length > 20) {
-      setError('Username must be 2-20 characters');
+      setError(t('username_length'));
       return;
     }
 
@@ -101,7 +100,7 @@ export const RegisterScreen: React.FC = () => {
     try {
       await register(username, password, nickname || undefined, email.trim(), emailCode.trim());
     } catch (err: any) {
-      const msg = err.response?.data?.message || err.message || 'Registration failed';
+      const msg = err.response?.data?.message || err.message || t('error_register_failed');
       setError(msg);
     } finally {
       setLoading(false);
@@ -116,14 +115,14 @@ export const RegisterScreen: React.FC = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.inner}>
-        <Text style={styles.logo}>{APP_NAME}</Text>
-        <Text style={styles.subtitle}>Create your account</Text>
+        <Text style={styles.logo}>{t('app_name')}</Text>
+        <Text style={styles.subtitle}>{t('register')}</Text>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <TextInput
           style={styles.input}
-          placeholder="Username"
+          placeholder={t('username')}
           placeholderTextColor={COLORS.onSurfaceVariant}
           value={username}
           onChangeText={setUsername}
@@ -133,7 +132,7 @@ export const RegisterScreen: React.FC = () => {
 
         <TextInput
           style={styles.input}
-          placeholder="Nickname (optional)"
+          placeholder={t('nickname')}
           placeholderTextColor={COLORS.onSurfaceVariant}
           value={nickname}
           onChangeText={setNickname}
@@ -142,7 +141,7 @@ export const RegisterScreen: React.FC = () => {
 
         <TextInput
           style={styles.input}
-          placeholder="Email"
+          placeholder={t('email')}
           placeholderTextColor={COLORS.onSurfaceVariant}
           value={email}
           onChangeText={setEmail}
@@ -155,7 +154,7 @@ export const RegisterScreen: React.FC = () => {
         <View style={styles.codeRow}>
           <TextInput
             style={[styles.input, styles.codeInput]}
-            placeholder="Code"
+            placeholder={t('email_code')}
             placeholderTextColor={COLORS.onSurfaceVariant}
             value={emailCode}
             onChangeText={setEmailCode}
@@ -168,18 +167,18 @@ export const RegisterScreen: React.FC = () => {
             disabled={!canSendCode}
           >
             {sendingCode ? (
-              <Text style={styles.sendCodeText}>Sending...</Text>
+              <Text style={styles.sendCodeText}>{t('sending')}</Text>
             ) : countdown > 0 ? (
               <Text style={styles.sendCodeText}>{countdown}s</Text>
             ) : (
-              <Text style={styles.sendCodeText}>Send Code</Text>
+              <Text style={styles.sendCodeText}>{t('send_code')}</Text>
             )}
           </TouchableOpacity>
         </View>
 
         <TextInput
           style={styles.input}
-          placeholder="Password"
+          placeholder={t('password')}
           placeholderTextColor={COLORS.onSurfaceVariant}
           value={password}
           onChangeText={setPassword}
@@ -188,7 +187,7 @@ export const RegisterScreen: React.FC = () => {
 
         <TextInput
           style={styles.input}
-          placeholder="Confirm Password"
+          placeholder={t('confirm_password')}
           placeholderTextColor={COLORS.onSurfaceVariant}
           value={confirmPassword}
           onChangeText={setConfirmPassword}
@@ -199,12 +198,12 @@ export const RegisterScreen: React.FC = () => {
           <LoadingSpinner />
         ) : (
           <TouchableOpacity style={styles.registerBtn} onPress={onRegister}>
-            <Text style={styles.registerBtnText}>Sign Up</Text>
+            <Text style={styles.registerBtnText}>{t('sign_up')}</Text>
           </TouchableOpacity>
         )}
 
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.loginLink}>Already have an account? Sign In</Text>
+          <Text style={styles.loginLink}>{t('has_account')} {t('sign_in')}</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>

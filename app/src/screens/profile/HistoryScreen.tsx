@@ -5,6 +5,7 @@ import {
   StyleSheet, RefreshControl, Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { interactionService } from '../../services';
 import { getMediaUrl } from '../../services/api';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
@@ -15,6 +16,7 @@ import type { WatchHistoryItem } from '../../types';
 
 export const HistoryScreen: React.FC = () => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const toast = useToast();
   const [history, setHistory] = useState<WatchHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -25,7 +27,7 @@ export const HistoryScreen: React.FC = () => {
       const data = await interactionService.getHistory();
       setHistory(data);
     } catch {
-      toast.error('Failed to load history');
+      toast.error(t('load_history_failed'));
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -43,20 +45,20 @@ export const HistoryScreen: React.FC = () => {
 
   const onClearHistory = () => {
     Alert.alert(
-      'Clear History',
-      'Are you sure you want to clear all watch history?',
+      t('clear_history'),
+      t('clear_history_confirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'Clear',
+          text: t('clear'),
           style: 'destructive',
           onPress: async () => {
             try {
               await interactionService.clearHistory();
               setHistory([]);
-              toast.success('History cleared');
+              toast.success(t('history_cleared'));
             } catch {
-              toast.error('Failed to clear history');
+              toast.error(t('clear_history_failed'));
             }
           },
         },
@@ -109,10 +111,10 @@ export const HistoryScreen: React.FC = () => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backBtn}>{'<'}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Watch History</Text>
+        <Text style={styles.title}>{t('watch_history')}</Text>
         {history.length > 0 && (
           <TouchableOpacity onPress={onClearHistory}>
-            <Text style={styles.clearBtn}>Clear</Text>
+            <Text style={styles.clearBtn}>{t('clear')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -134,8 +136,8 @@ export const HistoryScreen: React.FC = () => {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>📺</Text>
-            <Text style={styles.emptyText}>No watch history yet</Text>
-            <Text style={styles.emptyHint}>Start watching dramas to see your history here</Text>
+            <Text style={styles.emptyText}>{t('empty_history')}</Text>
+            <Text style={styles.emptyHint}>{t('empty_history_hint')}</Text>
           </View>
         }
       />

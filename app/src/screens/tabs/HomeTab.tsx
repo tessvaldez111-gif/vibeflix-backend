@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { useDramaStore } from '../../stores';
 import { DramaCard } from '../../components/drama/DramaCard';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
@@ -12,6 +13,7 @@ const ITEM_THRESHOLD = 5;
 
 export const HomeTab: React.FC = () => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const {
     recentDramas, genres, isLoadingDramas, isLoadingMore, homeHasMore,
     loadHomeData, loadMoreHome, filterByGenre, loadMoreGenre,
@@ -71,13 +73,13 @@ export const HomeTab: React.FC = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.logo}>DramaFlix</Text>
+        <Text style={styles.logo}>{t('app_name')}</Text>
       </View>
 
       {/* Search */}
       <TextInput
         style={styles.search}
-        placeholder="Search dramas..."
+        placeholder={t('search_placeholder')}
         placeholderTextColor={COLORS.onSurfaceVariant}
         editable={false}
         onPressIn={onSearchPress}
@@ -90,7 +92,7 @@ export const HomeTab: React.FC = () => {
             style={[styles.genreChip, !selectedGenre && styles.genreChipActive]}
             onPress={() => onGenrePress(null)}
           >
-            <Text style={[styles.genreChipText, !selectedGenre && styles.genreChipTextActive]}>All</Text>
+            <Text style={[styles.genreChipText, !selectedGenre && styles.genreChipTextActive]}>{t('all')}</Text>
           </TouchableOpacity>
           {genres.slice(0, 6).map((genre) => (
             <TouchableOpacity
@@ -120,7 +122,7 @@ export const HomeTab: React.FC = () => {
           ListFooterComponent={renderFooter}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>No dramas found</Text>
+              <Text style={styles.emptyText}>{t('no_dramas')}</Text>
             </View>
           }
         />

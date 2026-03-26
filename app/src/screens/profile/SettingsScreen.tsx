@@ -20,9 +20,9 @@ export const SettingsScreen: React.FC = () => {
   const onLogout = async () => {
     Alert.alert(
       t('logout'),
-      'Are you sure you want to sign out?',
+      t('logout_confirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
           text: t('logout'),
           style: 'destructive',
@@ -111,20 +111,20 @@ export const SettingsScreen: React.FC = () => {
             <Text style={styles.infoValue}>{user?.nickname || '—'}</Text>
           </View>
           <View style={styles.infoCard}>
-            <Text style={styles.infoLabel}>Role</Text>
+            <Text style={styles.infoLabel}>{t('role')}</Text>
             <Text style={styles.infoValue}>{user?.role || 'user'}</Text>
           </View>
         </View>
 
         {/* About */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>ABOUT</Text>
+          <Text style={styles.sectionTitle}>{t('about')}</Text>
           <View style={styles.infoCard}>
             <Text style={styles.infoLabel}>{t('app_version')}</Text>
             <Text style={styles.infoValue}>1.0.0</Text>
           </View>
           <View style={styles.infoCard}>
-            <Text style={styles.infoLabel}>Platform</Text>
+            <Text style={styles.infoLabel}>{t('platform')}</Text>
             <Text style={styles.infoValue}>{Platform.OS}</Text>
           </View>
         </View>

@@ -2,6 +2,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { getMediaUrl } from '../../services/api';
 import { COLORS, SPACING, GENRE_COLORS } from '../../utils/constants';
 import { formatNumber } from '../../utils/format';
@@ -13,6 +14,7 @@ interface Props {
 
 export const DramaCard: React.FC<Props> = ({ drama }) => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const coverUrl = getMediaUrl(drama.cover_image);
 
   const onPress = () => {
@@ -34,7 +36,7 @@ export const DramaCard: React.FC<Props> = ({ drama }) => {
       <View style={styles.info}>
         <Text style={styles.title} numberOfLines={1}>{drama.title}</Text>
         <Text style={styles.meta}>
-          {drama.episode_count} ep · {formatNumber(drama.view_count)} views
+          {drama.episode_count} {t('ep_abbr')} · {formatNumber(drama.view_count)} {t('views_abbr')}
         </Text>
       </View>
     </TouchableOpacity>

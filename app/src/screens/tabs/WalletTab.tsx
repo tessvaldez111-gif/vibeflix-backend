@@ -4,6 +4,7 @@ import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   Alert, Linking, Modal, ActivityIndicator,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useWalletStore, useAuthStore } from '../../stores';
 import { useToast } from '../../hooks';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
@@ -13,6 +14,7 @@ import { paymentService } from '../../services';
 import type { RechargePackage } from '../../types';
 
 export const WalletTab: React.FC = () => {
+  const { t } = useTranslation();
   const { points, packages, todaySignedIn, isLoading, loadPoints, loadPackages, signin, resetAfterRecharge } = useWalletStore();
   const { isAuthenticated } = useAuthStore();
   const toast = useToast();
@@ -30,11 +32,11 @@ export const WalletTab: React.FC = () => {
   const onSignin = useCallback(async () => {
     try {
       const result = await signin();
-      toast.success(`+${result.points} points! Signed in successfully`);
+      toast.success(t('signin_bonus', { points: result.points }));
     } catch (err: any) {
-      const msg = err?.response?.data?.error || err?.message || 'Sign-in failed';
+      const msg = err?.response?.data?.error || err?.message || t('signin_failed');
       if (msg.includes('already') || msg.includes('Already')) {
-        toast.show('Already signed in today');
+        toast.show(t('signin_already'));
       } else {
         toast.error(msg);
       }
@@ -51,15 +53,12 @@ export const WalletTab: React.FC = () => {
     setShowConfirm(false);
     setIsPaying(true);
     try {
-      // 1. Create recharge order
       const { order_no } = await paymentService.createRechargeOrder(selectedPkg.id);
-      // 2. Create PayPal payment
       const { approveUrl } = await paymentService.createPaypalPayment(order_no);
-      // 3. Open PayPal in browser
       await Linking.openURL(approveUrl);
-      toast.success('Redirecting to PayPal...');
+      toast.success(t('redirecting_paypal'));
     } catch (err: any) {
-      const msg = err?.response?.data?.error || err?.message || 'Payment failed';
+      const msg = err?.response?.data?.error || err?.message || t('payment_failed');
       toast.error(msg);
     } finally {
       setIsPaying(false);
@@ -72,13 +71,13 @@ export const WalletTab: React.FC = () => {
       onPress={() => onRecharge(item)}
       disabled={isPaying}
     >
-      {item.is_hot && <View style={styles.hotBadge}><Text style={styles.hotText}>HOT</Text></View>}
+      {item.is_hot && <View style={styles.hotBadge}><Text style={styles.hotText}>{t('hot')}</Text></View>}
       <Text style={styles.packageName}>{item.name}</Text>
       <Text style={styles.packagePoints}>
-        {formatNumber(item.points + item.bonus_points)} Points
+        {t('points_count', { count: formatNumber(item.points + item.bonus_points) })}
       </Text>
       {item.bonus_points > 0 && (
-        <Text style={styles.packageBonus}>+{formatNumber(item.bonus_points)} Bonus</Text>
+        <Text style={styles.packageBonus}>{t('bonus_count', { count: formatNumber(item.bonus_points) })}</Text>
       )}
       <Text style={styles.packagePrice}>{formatPrice(item.price)}</Text>
     </TouchableOpacity>
@@ -87,18 +86,18 @@ export const WalletTab: React.FC = () => {
   if (!isAuthenticated) {
     return (
       <View style={[styles.container, styles.center]}>
-        <Text style={styles.loginHint}>Sign in to view your wallet</Text>
+        <Text style={styles.loginHint}>{t('login_hint_wallet')}</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Wallet</Text>
+      <Text style={styles.title}>{t('tab_wallet')}</Text>
 
       {/* Points Balance */}
       <View style={styles.balanceCard}>
-        <Text style={styles.balanceLabel}>Points Balance</Text>
+        <Text style={styles.balanceLabel}>{t('points_balance')}</Text>
         <Text style={styles.balanceValue}>{points ? formatNumber(points.balance) : '---'}</Text>
         <TouchableOpacity
           style={[styles.signinBtn, todaySignedIn && styles.signinBtnDone]}
@@ -106,13 +105,13 @@ export const WalletTab: React.FC = () => {
           disabled={todaySignedIn || isPaying}
         >
           <Text style={styles.signinText}>
-            {todaySignedIn ? 'Signed In Today' : 'Daily Sign-In'}
+            {todaySignedIn ? t('signed_in_today') : t('daily_signin')}
           </Text>
         </TouchableOpacity>
       </View>
 
       {/* Recharge Packages */}
-      <Text style={styles.sectionTitle}>Recharge</Text>
+      <Text style={styles.sectionTitle}>{t('recharge')}</Text>
       {isLoading ? (
         <LoadingSpinner />
       ) : (
@@ -130,23 +129,23 @@ export const WalletTab: React.FC = () => {
       <Modal visible={showConfirm} transparent animationType="fade" onRequestClose={() => setShowConfirm(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Confirm Purchase</Text>
+            <Text style={styles.modalTitle}>{t('confirm_purchase')}</Text>
             {selectedPkg && (
               <>
                 <Text style={styles.modalPkgName}>{selectedPkg.name}</Text>
                 <Text style={styles.modalPoints}>
-                  {formatNumber(selectedPkg.points + selectedPkg.bonus_points)} Points
+                  {t('points_count', { count: formatNumber(selectedPkg.points + selectedPkg.bonus_points) })}
                 </Text>
                 <Text style={styles.modalPrice}>{formatPrice(selectedPkg.price)}</Text>
-                <Text style={styles.modalHint}>You will be redirected to PayPal to complete payment.</Text>
+                <Text style={styles.modalHint}>{t('paypal_hint')}</Text>
               </>
             )}
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowConfirm(false)}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
+                <Text style={styles.modalCancelText}>{t('cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.modalConfirmBtn} onPress={confirmRecharge}>
-                <Text style={styles.modalConfirmText}>Pay with PayPal</Text>
+                <Text style={styles.modalConfirmText}>{t('pay_with_paypal')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -157,7 +156,7 @@ export const WalletTab: React.FC = () => {
       {isPaying && (
         <View style={styles.payingOverlay}>
           <ActivityIndicator size="large" color={COLORS.primaryLight} />
-          <Text style={styles.payingText}>Processing payment...</Text>
+          <Text style={styles.payingText}>{t('processing_payment')}</Text>
         </View>
       )}
     </View>
@@ -228,7 +227,6 @@ const styles = StyleSheet.create({
   packagePoints: { color: COLORS.primaryLight, fontSize: 18, fontWeight: 'bold' },
   packageBonus: { color: COLORS.gold, fontSize: 12, marginTop: 2 },
   packagePrice: { color: COLORS.onSurfaceVariant, fontSize: 14, marginTop: 4 },
-  // Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -261,11 +259,10 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: SPACING.sm,
     borderRadius: 12,
-    backgroundColor: '#0070BA', // PayPal blue
+    backgroundColor: '#0070BA',
     alignItems: 'center',
   },
   modalConfirmText: { color: '#FFF', fontSize: 15, fontWeight: '600' },
-  // Paying overlay
   payingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.7)',

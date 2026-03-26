@@ -2,39 +2,40 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores';
 import { COLORS, SPACING } from '../../utils/constants';
 
 export const ProfileTab: React.FC = () => {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const { user, isAuthenticated, logout } = useAuthStore();
 
   if (!isAuthenticated || !user) {
     return (
       <View style={[styles.container, styles.center]}>
-        <Text style={styles.welcomeText}>Welcome to DramaFlix</Text>
-        <Text style={styles.loginHint}>Sign in to track your favorites and watch history</Text>
+        <Text style={styles.welcomeText}>{t('welcome')}</Text>
+        <Text style={styles.loginHint}>{t('login_hint_profile')}</Text>
         <TouchableOpacity style={styles.signinBtn} onPress={() => navigation.navigate('Login' as never)}>
-          <Text style={styles.signinBtnText}>Sign In</Text>
+          <Text style={styles.signinBtnText}>{t('sign_in')}</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   const menuItems = [
-    { icon: 'clock-outline', label: 'Watch History', screen: 'WatchHistory' },
-    { icon: 'heart-outline', label: 'My Favorites', screen: 'Favorites' },
-    { icon: 'cog-outline', label: 'Settings', screen: 'Settings' },
+    { icon: 'clock-outline', label: t('watch_history'), screen: 'WatchHistory' },
+    { icon: 'heart-outline', label: t('my_favorites'), screen: 'Favorites' },
+    { icon: 'cog-outline', label: t('settings'), screen: 'Settings' },
   ];
 
   const onLogout = async () => {
     await logout();
-    // NavigationContainer will auto redirect since isAuthenticated is false
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Profile</Text>
+      <Text style={styles.title}>{t('tab_profile')}</Text>
 
       {/* User Info Card */}
       <View style={styles.userCard}>
@@ -65,7 +66,7 @@ export const ProfileTab: React.FC = () => {
 
       {/* Logout */}
       <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
-        <Text style={styles.logoutText}>Sign Out</Text>
+        <Text style={styles.logoutText}>{t('sign_out')}</Text>
       </TouchableOpacity>
     </View>
   );

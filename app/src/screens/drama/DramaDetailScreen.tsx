@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, ScrollView, Modal, Alert } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { useDramaStore, usePlayerStore, useAuthStore, useWalletStore } from '../../stores';
 import { interactionService, paymentService } from '../../services';
 import { getMediaUrl } from '../../services/api';
@@ -14,6 +15,7 @@ import type { Episode } from '../../types';
 type RouteParams = { dramaId: number };
 
 export const DramaDetailScreen: React.FC = () => {
+  const { t } = useTranslation();
   const route = useRoute();
   const navigation = useNavigation();
   const { dramaId } = route.params as RouteParams;
@@ -27,7 +29,6 @@ export const DramaDetailScreen: React.FC = () => {
   const [isPurchasing, setIsPurchasing] = useState(false);
 
   useEffect(() => {
-    // Only reload if different drama or no cached data
     if (currentDrama?.id !== dramaId) {
       loadDramaDetail(dramaId);
     }
@@ -42,18 +43,14 @@ export const DramaDetailScreen: React.FC = () => {
   }, [isAuthenticated, dramaId]);
 
   const onPlayEpisode = (episode: Episode) => {
-    // Check if episode requires payment
     if (!episode.is_free && episode.points_cost > 0) {
       if (!isAuthenticated) {
         navigation.navigate('Login' as never);
         return;
       }
-      // Show purchase confirmation
       setPurchaseModal({ episode });
       return;
     }
-
-    // Free or already purchased — play directly
     navigateToPlayer(episode);
   };
 
@@ -73,15 +70,14 @@ export const DramaDetailScreen: React.FC = () => {
     const cost = episode.points_cost;
     const balance = points?.balance ?? 0;
 
-    // Check balance
     if (balance < cost) {
       setPurchaseModal(null);
       Alert.alert(
-        'Insufficient Points',
-        `You need ${cost} points but only have ${balance}.\n\nWould you like to recharge?`,
+        t('insufficient_points'),
+        t('insufficient_msg', { cost, balance }),
         [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Recharge', onPress: () => navigation.navigate('WalletTab' as never) },
+          { text: t('cancel'), style: 'cancel' },
+          { text: t('recharge'), onPress: () => navigation.navigate('WalletTab' as never) },
         ],
       );
       return;
@@ -91,14 +87,12 @@ export const DramaDetailScreen: React.FC = () => {
     try {
       await paymentService.purchaseEpisode(dramaId, episode.id, cost);
       await loadPoints();
-      // Reload drama detail to refresh episode lock status
       await loadDramaDetail(dramaId);
       setPurchaseModal(null);
-      toast.success(`Unlocked! -${cost} points`);
-      // Play after purchase
+      toast.success(t('unlocked', { cost }));
       navigateToPlayer(episode);
     } catch (err: any) {
-      const msg = err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Purchase failed';
+      const msg = err?.response?.data?.error || err?.response?.data?.message || err?.message || t('purchase_failed');
       toast.error(msg);
     } finally {
       setIsPurchasing(false);
@@ -117,7 +111,7 @@ export const DramaDetailScreen: React.FC = () => {
         await interactionService.addFavorite(dramaId, 'favorite');
       }
       setIsFavorited(!isFavorited);
-      toast.show(isFavorited ? 'Removed from favorites' : 'Added to favorites');
+      toast.show(isFavorited ? t('removed_favorite') : t('added_favorite'));
     } catch {
       // Error handling
     }
@@ -132,7 +126,7 @@ export const DramaDetailScreen: React.FC = () => {
         await interactionService.addFavorite(dramaId, 'like');
       }
       setIsLiked(!isLiked);
-      toast.show(isLiked ? 'Unliked' : 'Liked!');
+      toast.show(isLiked ? t('unliked') : t('liked'));
     } catch {
       // Error handling
     }
@@ -151,7 +145,7 @@ export const DramaDetailScreen: React.FC = () => {
           {isLocked && <Text style={styles.lockIconSmall}>🔒</Text>}
         </View>
         <View style={styles.episodeInfo}>
-          <Text style={styles.episodeTitle}>{item.title || `Episode ${item.episode_number}`}</Text>
+          <Text style={styles.episodeTitle}>{item.title || t('episode_title', { num: item.episode_number })}</Text>
           {item.duration > 0 && (
             <Text style={styles.episodeDuration}>{formatDuration(item.duration)}</Text>
           )}
@@ -161,7 +155,7 @@ export const DramaDetailScreen: React.FC = () => {
             style={styles.unlockBtn}
             onPress={() => onPlayEpisode(item)}
           >
-            <Text style={styles.unlockText}>{item.points_cost} pts</Text>
+            <Text style={styles.unlockText}>{t('pts_cost', { count: item.points_cost })}</Text>
           </TouchableOpacity>
         )}
       </TouchableOpacity>
@@ -185,14 +179,14 @@ export const DramaDetailScreen: React.FC = () => {
         <View style={styles.tags}>
           <Text style={[styles.tag, styles.genreTag]}>{currentDrama.genre}</Text>
           <Text style={[styles.tag, currentDrama.status === 'completed' ? styles.tagGreen : styles.tagBlue]}>
-            {currentDrama.status === 'completed' ? 'Completed' : 'Ongoing'}
+            {currentDrama.status === 'completed' ? t('completed') : t('ongoing')}
           </Text>
-          <Text style={styles.tag}>{currentDrama.episode_count} Episodes</Text>
+          <Text style={styles.tag}>{t('episode_count', { count: currentDrama.episode_count })}</Text>
         </View>
         <Text style={styles.stats}>
-          {formatNumber(currentDrama.view_count)} views
+          {formatNumber(currentDrama.view_count)} {t('views')}
           {'  ·  '}
-          {formatNumber(currentDrama.collect_count)} favorites
+          {formatNumber(currentDrama.collect_count)} {t('favorites')}
         </Text>
         <Text style={styles.description}>{currentDrama.description}</Text>
       </View>
@@ -201,7 +195,7 @@ export const DramaDetailScreen: React.FC = () => {
       {isAuthenticated && (
         <View style={styles.pointsHint}>
           <Text style={styles.pointsHintText}>
-            Your points: {points ? formatNumber(points.balance) : '---'}
+            {t('your_points', { count: points ? formatNumber(points.balance) : '---' })}
           </Text>
         </View>
       )}
@@ -210,16 +204,16 @@ export const DramaDetailScreen: React.FC = () => {
       <View style={styles.actions}>
         <TouchableOpacity style={styles.actionBtn} onPress={onToggleFavorite}>
           <Text style={styles.actionIcon}>{isFavorited ? '❤️' : '🤍'}</Text>
-          <Text style={styles.actionLabel}>Favorite</Text>
+          <Text style={styles.actionLabel}>{t('favorite')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn} onPress={onToggleLike}>
           <Text style={styles.actionIcon}>{isLiked ? '👍' : '👍🏻'}</Text>
-          <Text style={styles.actionLabel}>Like</Text>
+          <Text style={styles.actionLabel}>{t('like')}</Text>
         </TouchableOpacity>
       </View>
 
       {/* Episode List */}
-      <Text style={styles.sectionTitle}>Episodes</Text>
+      <Text style={styles.sectionTitle}>{t('episodes')}</Text>
       <FlatList
         data={currentDrama.episodes}
         renderItem={renderEpisode}
@@ -234,35 +228,35 @@ export const DramaDetailScreen: React.FC = () => {
       <Modal visible={!!purchaseModal} transparent animationType="fade" onRequestClose={() => setPurchaseModal(null)}>
         <View style={styles.purchaseOverlay}>
           <View style={styles.purchaseCard}>
-            <Text style={styles.purchaseTitle}>Unlock Episode</Text>
+            <Text style={styles.purchaseTitle}>{t('unlock_episode')}</Text>
             {purchaseModal && (
               <>
                 <Text style={styles.purchaseEpName}>
-                  Episode {purchaseModal.episode.episode_number} — {purchaseModal.episode.title || 'Untitled'}
+                  {t('episode_title', { num: purchaseModal.episode.episode_number })} — {purchaseModal.episode.title || ''}
                 </Text>
                 <View style={styles.purchaseCostRow}>
-                  <Text style={styles.purchaseCostLabel}>Cost</Text>
-                  <Text style={styles.purchaseCostValue}>{purchaseModal.episode.points_cost} Points</Text>
+                  <Text style={styles.purchaseCostLabel}>{t('cost')}</Text>
+                  <Text style={styles.purchaseCostValue}>{t('points_count', { count: purchaseModal.episode.points_cost })}</Text>
                 </View>
                 <View style={styles.purchaseCostRow}>
-                  <Text style={styles.purchaseCostLabel}>Your Balance</Text>
+                  <Text style={styles.purchaseCostLabel}>{t('your_balance')}</Text>
                   <Text style={[
                     styles.purchaseCostValue,
                     (points?.balance ?? 0) < purchaseModal.episode.points_cost && styles.insufficientBalance,
                   ]}>
-                    {points ? formatNumber(points.balance) : '---'} Points
+                    {points ? formatNumber(points.balance) : '---'} {t('points')}
                   </Text>
                 </View>
                 {(points?.balance ?? 0) < purchaseModal.episode.points_cost && (
                   <Text style={styles.purchaseHint}>
-                    Insufficient points. Please recharge first.
+                    {t('insufficient_hint')}
                   </Text>
                 )}
               </>
             )}
             <View style={styles.purchaseActions}>
               <TouchableOpacity style={styles.purchaseCancelBtn} onPress={() => setPurchaseModal(null)}>
-                <Text style={styles.purchaseCancelText}>Cancel</Text>
+                <Text style={styles.purchaseCancelText}>{t('cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
@@ -276,9 +270,9 @@ export const DramaDetailScreen: React.FC = () => {
                 }
               >
                 {isPurchasing ? (
-                  <Text style={styles.purchaseConfirmText}>Processing...</Text>
+                  <Text style={styles.purchaseConfirmText}>{t('processing')}</Text>
                 ) : (
-                  <Text style={styles.purchaseConfirmText}>Unlock</Text>
+                  <Text style={styles.purchaseConfirmText}>{t('unlock')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -360,7 +354,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.gold,
   },
   unlockText: { color: '#000', fontSize: 12, fontWeight: '600' },
-  // Purchase Modal
   purchaseOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',

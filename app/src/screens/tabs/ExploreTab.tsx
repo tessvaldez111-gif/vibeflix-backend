@@ -6,9 +6,11 @@ import { DramaCard } from '../../components/drama/DramaCard';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { COLORS, SPACING } from '../../utils/constants';
 import { useDebounce } from '../../hooks';
+import { useTranslation } from 'react-i18next';
 import type { Drama } from '../../types';
 
 export const ExploreTab: React.FC = () => {
+  const { t } = useTranslation();
   const {
     searchResults, genres, isLoadingDramas, isLoadingMore, searchHasMore,
     searchDramas, clearSearch, loadMoreSearch, loadHomeData, homeHasMore, loadMoreHome,
@@ -74,12 +76,12 @@ export const ExploreTab: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Explore</Text>
+      <Text style={styles.title}>{t('tab_explore')}</Text>
 
       {/* Search Input */}
       <TextInput
         style={styles.searchInput}
-        placeholder="Search by title or genre..."
+        placeholder={t('search_explore')}
         placeholderTextColor={COLORS.onSurfaceVariant}
         value={searchText}
         onChangeText={setSearchText}
@@ -94,7 +96,7 @@ export const ExploreTab: React.FC = () => {
             style={[styles.genreChip, !selectedGenre && styles.genreChipActive]}
             onPress={() => onGenrePress(null)}
           >
-            <Text style={styles.genreChipText}>All</Text>
+            <Text style={styles.genreChipText}>{t('all')}</Text>
           </TouchableOpacity>
           {genres.map((genre) => (
             <TouchableOpacity
@@ -126,7 +128,7 @@ export const ExploreTab: React.FC = () => {
             <View style={styles.empty}>
               <Text style={styles.emptyIcon}>🔍</Text>
               <Text style={styles.emptyText}>
-                {debouncedSearch ? `No results for "${debouncedSearch}"` : 'No dramas found'}
+                {debouncedSearch ? t('no_results_for', { query: debouncedSearch }) : t('no_dramas')}
               </Text>
             </View>
           }

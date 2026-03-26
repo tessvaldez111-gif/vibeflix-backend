@@ -5,6 +5,7 @@ import {
   StyleSheet, RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { interactionService } from '../../services';
 import { DramaCard } from '../../components/drama/DramaCard';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
@@ -14,6 +15,7 @@ import type { Drama } from '../../types';
 
 export const FavoritesScreen: React.FC = () => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const toast = useToast();
   const [favorites, setFavorites] = useState<Drama[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -24,7 +26,7 @@ export const FavoritesScreen: React.FC = () => {
       const data = await interactionService.getFavorites('favorite');
       setFavorites(data);
     } catch {
-      toast.error('Failed to load favorites');
+      toast.error(t('load_favorites_failed'));
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -55,7 +57,7 @@ export const FavoritesScreen: React.FC = () => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backBtn}>{'<'}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>My Favorites</Text>
+        <Text style={styles.title}>{t('my_favorites')}</Text>
         <Text style={styles.count}>{favorites.length}</Text>
       </View>
 
@@ -77,10 +79,8 @@ export const FavoritesScreen: React.FC = () => {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>❤️</Text>
-            <Text style={styles.emptyText}>No favorites yet</Text>
-            <Text style={styles.emptyHint}>
-              Tap the heart icon on any drama to add it to your favorites
-            </Text>
+            <Text style={styles.emptyText}>{t('empty_favorites')}</Text>
+            <Text style={styles.emptyHint}>{t('empty_favorites_hint')}</Text>
           </View>
         }
       />
