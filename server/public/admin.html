@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>短剧管理后台</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif; background: #f0f2f5; color: #333; }
+
+    /* ===== Login ===== */
+    .login-page { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .login-box { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); width: 380px; }
+    .login-box h1 { text-align: center; margin-bottom: 8px; font-size: 24px; color: #1a1a2e; }
+    .login-box p { text-align: center; color: #999; margin-bottom: 30px; font-size: 14px; }
+    .login-box input { width: 100%; padding: 12px 16px; border: 2px solid #e8e8e8; border-radius: 8px; font-size: 14px; margin-bottom: 16px; transition: border-color 0.3s; }
+    .login-box input:focus { outline: none; border-color: #667eea; }
+    .login-box button { width: 100%; padding: 12px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; transition: opacity 0.3s; }
+    .login-box button:hover { opacity: 0.9; }
+    .login-error { color: #e74c3c; text-align: center; font-size: 13px; margin-bottom: 12px; display: none; }
+
+    /* ===== Layout ===== */
+    .app { display: none; }
+    .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 220px; background: #1a1a2e; color: white; z-index: 100; display: flex; flex-direction: column; }
+    .sidebar-header { padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .sidebar-header h2 { font-size: 18px; }
+    .sidebar-header h2 span { color: #667eea; }
+    .sidebar-header .admin-name { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+    .sidebar nav { flex: 1; overflow-y: auto; }
+    .sidebar nav a { display: flex; align-items: center; gap: 12px; padding: 14px 20px; color: rgba(255,255,255,0.7); text-decoration: none; transition: all 0.2s; font-size: 14px; }
+    .sidebar nav a:hover, .sidebar nav a.active { background: rgba(255,255,255,0.1); color: white; }
+    .sidebar nav a .icon { font-size: 18px; width: 24px; text-align: center; }
+    .sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+    .sidebar-footer a { color: rgba(255,255,255,0.5); font-size: 13px; text-decoration: none; cursor: pointer; }
+    .sidebar-footer a:hover { color: white; }
+    .main { margin-left: 220px; padding: 24px; min-height: 100vh; }
+
+    /* ===== Common ===== */
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .page-header h1 { font-size: 22px; font-weight: 600; }
+
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 24px; }
+    .stat-card { background: white; padding: 24px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .stat-card .label { font-size: 13px; color: #999; margin-bottom: 8px; }
+    .stat-card .value { font-size: 32px; font-weight: 700; }
+    .stat-card:nth-child(1) .value { color: #667eea; }
+    .stat-card:nth-child(2) .value { color: #f093fb; }
+    .stat-card:nth-child(3) .value { color: #4facfe; }
+    .stat-card:nth-child(4) .value { color: #43e97b; }
+
+    .card { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 24px; margin-bottom: 24px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 12px 16px; border-bottom: 2px solid #f0f0f0; color: #666; font-size: 13px; font-weight: 600; white-space: nowrap; }
+    td { padding: 12px 16px; border-bottom: 1px solid #f5f5f5; font-size: 14px; }
+    tr:hover td { background: #fafafa; }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; }
+    .badge-ongoing { background: #fff3e0; color: #e65100; }
+    .badge-completed { background: #e8f5e9; color: #2e7d32; }
+    .badge-draft { background: #f5f5f5; color: #999; }
+    .badge-admin { background: #e3f2fd; color: #1565c0; }
+    .badge-user { background: #f3e5f5; color: #7b1fa2; }
+    .badge-active { background: #e8f5e9; color: #2e7d32; }
+    .badge-disabled { background: #ffebee; color: #c62828; }
+
+    .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; transition: opacity 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: #667eea; color: white; }
+    .btn-danger { background: #e74c3c; color: white; }
+    .btn-secondary { background: #f0f0f0; color: #333; }
+    .btn-success { background: #2ecc71; color: white; }
+    .btn-warning { background: #f39c12; color: white; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .btn-group { display: flex; gap: 6px; }
+
+    /* ===== Modal ===== */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: white; border-radius: 12px; padding: 32px; width: 500px; max-height: 85vh; overflow-y: auto; }
+    .modal-wide { width: 650px; }
+    .modal h2 { margin-bottom: 24px; font-size: 18px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: #555; }
+    .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px 14px; border: 2px solid #e8e8e8; border-radius: 8px; font-size: 14px; font-family: inherit; }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; border-color: #667eea; }
+    .form-group textarea { height: 80px; resize: vertical; }
+    .form-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
+    .form-row { display: flex; gap: 16px; }
+    .form-row .form-group { flex: 1; }
+
+    .upload-area { border: 2px dashed #ddd; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; transition: border-color 0.3s; }
+    .upload-area:hover { border-color: #667eea; }
+    .upload-area input { display: none; }
+    .upload-area p { color: #999; font-size: 13px; margin-top: 8px; }
+
+    .episode-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+    .episode-item:last-child { border-bottom: none; }
+    .episode-num { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: #667eea; color: white; font-size: 14px; font-weight: 600; margin-right: 12px; flex-shrink: 0; }
+
+    .toast { position: fixed; top: 20px; right: 20px; padding: 12px 24px; border-radius: 8px; color: white; font-size: 14px; z-index: 9999; display: none; }
+    .toast.success { background: #2ecc71; }
+    .toast.error { background: #e74c3c; }
+    .toast.info { background: #3498db; }
+
+    .page-section { display: none; }
+    .page-section.active { display: block; }
+
+    .cover-thumb { width: 60px; height: 80px; object-fit: cover; border-radius: 4px; }
+    .empty-state { text-align: center; padding: 60px 20px; color: #999; }
+    .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+
+    /* Upload progress */
+    .upload-progress { margin-top: 12px; display: none; }
+    .upload-progress.active { display: block; }
+    .progress-bar { width: 100%; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); border-radius: 4px; transition: width 0.3s; width: 0%; }
+    .progress-text { font-size: 12px; color: #666; margin-top: 4px; }
+
+    /* Search bar */
+    .search-bar { display: flex; gap: 12px; margin-bottom: 20px; }
+    .search-bar input, .search-bar select { padding: 8px 14px; border: 2px solid #e8e8e8; border-radius: 8px; font-size: 14px; }
+    .search-bar input { flex: 1; }
+    .search-bar input:focus, .search-bar select:focus { outline: none; border-color: #667eea; }
+
+    /* Pagination */
+    .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 20px; }
+    .pagination button { padding: 6px 12px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer; font-size: 13px; }
+    .pagination button.active { background: #667eea; color: white; border-color: #667eea; }
+    .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .pagination span { padding: 6px 8px; font-size: 13px; color: #666; }
+
+    /* Drama detail stats */
+    .drama-stats { display: flex; gap: 24px; margin-bottom: 16px; }
+    .drama-stats .stat-item { text-align: center; }
+    .drama-stats .stat-item .num { font-size: 20px; font-weight: 700; color: #333; }
+    .drama-stats .stat-item .lbl { font-size: 12px; color: #999; }
+
+    /* Order & Points */
+    .badge-pending { background: #fff3e0; color: #e65100; }
+    .badge-paid, .badge-completed { background: #e8f5e9; color: #2e7d32; }
+    .badge-failed { background: #ffebee; color: #c62828; }
+    .badge-refunded { background: #f3e5f5; color: #7b1fa2; }
+    .badge-cancelled { background: #f5f5f5; color: #999; }
+    .badge-earn { background: #e3f2fd; color: #1565c0; }
+    .badge-spend { background: #ffebee; color: #c62828; }
+    .badge-admin_add { background: #e8f5e9; color: #2e7d32; }
+    .badge-admin_subtract { background: #fff3e0; color: #e65100; }
+    .badge-refund { background: #f3e5f5; color: #7b1fa2; }
+    .badge-hot { background: #e74c3c; color: white; font-size: 11px; }
+    .settings-section { margin-bottom: 32px; }
+    .settings-section h3 { margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #eee; }
+  </style>
+</head>
+<body>
+  <div class="toast" id="toast"></div>
+
+  <!-- Login -->
+  <div class="login-page" id="loginPage">
+    <div class="login-box">
+      <h1>短剧管理后台</h1>
+      <p>请登录管理员账号</p>
+      <div class="login-error" id="loginError">用户名或密码错误</div>
+      <input type="text" id="loginUsername" placeholder="用户名" value="admin">
+      <input type="password" id="loginPassword" placeholder="密码" value="admin123">
+      <button onclick="login()">登 录</button>
+    </div>
+  </div>
+
+  <!-- App -->
+  <div class="app" id="app">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2><span>短剧</span>管理</h2>
+        <div class="admin-name" id="adminName"></div>
+      </div>
+      <nav>
+        <a href="#" class="active" data-page="dashboard" onclick="switchPage('dashboard', this)"><span class="icon">&#x1F4CA;</span> 数据概览</a>
+        <a href="#" data-page="dramas" onclick="switchPage('dramas', this)"><span class="icon">&#x1F3AC;</span> 短剧管理</a>
+        <a href="#" data-page="upload" onclick="switchPage('upload', this)"><span class="icon">&#x1F4E4;</span> 上传视频</a>
+        <a href="#" data-page="categories" onclick="switchPage('categories', this)"><span class="icon">&#x1F4C1;</span> 分类管理</a>
+        <a href="#" data-page="users" onclick="switchPage('users', this)"><span class="icon">&#x1F465;</span> 用户管理</a>
+        <a href="#" data-page="orders" onclick="switchPage('orders', this)"><span class="icon">&#x1F4B3;</span> 订单管理</a>
+        <a href="#" data-page="points" onclick="switchPage('points', this)"><span class="icon">&#x2B50;</span> 积分管理</a>
+        <a href="#" data-page="packages" onclick="switchPage('packages', this)"><span class="icon">&#x1F381;</span> 充值套餐</a>
+        <a href="#" data-page="payment-settings" onclick="switchPage('payment-settings', this)"><span class="icon">&#x1F4B2;</span> 支付设置</a>
+        <a href="#" data-page="vip-plans" onclick="switchPage('vip-plans', this)"><span class="icon">&#x1F451;</span> VIP套餐</a>
+        <a href="#" data-page="settings" onclick="switchPage('settings', this)"><span class="icon">&#x2699;</span> 系统设置</a>
+      </nav>
+      <div class="sidebar-footer">
+        <a onclick="logout()">退出登录</a>
+      </div>
+    </aside>
+
+    <main class="main">
+      <!-- Dashboard -->
+      <div class="page-section active" id="page-dashboard">
+        <div class="page-header"><h1>数据概览</h1></div>
+        <div class="stats">
+          <div class="stat-card"><div class="label">短剧总数</div><div class="value" id="statDramas">0</div></div>
+          <div class="stat-card"><div class="label">剧集总数</div><div class="value" id="statEpisodes">0</div></div>
+          <div class="stat-card"><div class="label">注册用户</div><div class="value" id="statUsers">0</div></div>
+          <div class="stat-card"><div class="label">今日新增</div><div class="value" id="statToday">0</div></div>
+        </div>
+        <div class="card">
+          <h3 style="margin-bottom:16px;">最近添加的短剧</h3>
+          <div id="recentDramas"></div>
+        </div>
+      </div>
+
+      <!-- Dramas -->
+      <div class="page-section" id="page-dramas">
+        <div class="page-header"><h1>短剧管理</h1><button class="btn btn-primary" onclick="openAddDramaModal()">+ 添加短剧</button></div>
+        <div class="card">
+          <div class="search-bar">
+            <input type="text" id="dramaSearch" placeholder="搜索短剧标题..." onkeyup="if(event.key==='Enter')searchDramas()">
+            <select id="dramaFilterStatus" onchange="searchDramas()">
+              <option value="all">全部状态</option>
+              <option value="ongoing">连载中</option>
+              <option value="completed">已完结</option>
+              <option value="draft">草稿</option>
+            </select>
+            <button class="btn btn-primary" onclick="searchDramas()">搜索</button>
+          </div>
+          <table>
+            <thead><tr><th>封面</th><th>标题</th><th>分类</th><th>状态</th><th>集数</th><th>播放/喜欢/收藏</th><th>创建时间</th><th>操作</th></tr></thead>
+            <tbody id="dramasTableBody"></tbody>
+          </table>
+          <div class="empty-state" id="emptyDramas" style="display:none;"><div class="icon">&#x1F4ED;</div><p>暂无短剧，点击右上角按钮添加</p></div>
+          <div class="pagination" id="dramasPagination"></div>
+        </div>
+      </div>
+
+      <!-- Upload -->
+      <div class="page-section" id="page-upload">
+        <div class="page-header"><h1>上传视频</h1></div>
+        <div class="card">
+          <div class="form-group"><label>选择短剧</label><select id="uploadDramaId"><option value="">请先添加短剧</option></select></div>
+          <div class="form-row">
+            <div class="form-group"><label>集数</label><input type="number" id="uploadEpisodeNum" placeholder="例如：1" min="1"></div>
+            <div class="form-group"><label>剧集标题（可选）</label><input type="text" id="uploadEpisodeTitle" placeholder="例如：第一集 相遇"></div>
+          </div>
+          <div class="form-group">
+            <label>视频文件</label>
+            <div class="upload-area" onclick="document.getElementById('videoFileInput').click()">
+              <div style="font-size:36px;">&#x1F3A5;</div>
+              <p>点击选择视频文件或拖拽到此处</p>
+              <p style="font-size:12px; color:#bbb;">支持 MP4, WebM, MOV 格式</p>
+              <input type="file" id="videoFileInput" accept="video/*" onchange="onVideoFileSelect(event)">
+            </div>
+            <div id="videoPreview" style="margin-top:12px;"></div>
+            <div class="upload-progress" id="uploadProgress">
+              <div class="progress-bar"><div class="progress-fill" id="uploadProgressFill"></div></div>
+              <div class="progress-text" id="uploadProgressText">上传中... 0%</div>
+            </div>
+          </div>
+          <div style="margin-top:20px;"><button class="btn btn-primary" onclick="uploadVideo()" id="uploadBtn">开始上传</button></div>
+        </div>
+      </div>
+
+      <!-- Categories -->
+      <div class="page-section" id="page-categories">
+        <div class="page-header"><h1>分类管理</h1><button class="btn btn-primary" onclick="openAddCategoryModal()">+ 添加分类</button></div>
+        <div class="card">
+          <table>
+            <thead><tr><th>ID</th><th>图标</th><th>分类名称</th><th>短剧数量</th><th>排序</th><th>操作</th></tr></thead>
+            <tbody id="categoriesTableBody"></tbody>
+          </table>
+          <div class="empty-state" id="emptyCategories" style="display:none;"><div class="icon">&#x1F4ED;</div><p>暂无分类</p></div>
+        </div>
+      </div>
+
+      <!-- Users -->
+      <div class="page-section" id="page-users">
+        <div class="page-header"><h1>用户管理</h1></div>
+        <div class="card">
+          <div class="search-bar">
+            <input type="text" id="userSearch" placeholder="搜索用户名/昵称/邮箱..." onkeyup="if(event.key==='Enter')searchUsers()">
+            <select id="userFilterRole" onchange="searchUsers()">
+              <option value="all">全部角色</option>
+              <option value="admin">管理员</option>
+              <option value="user">普通用户</option>
+            </select>
+            <button class="btn btn-primary" onclick="searchUsers()">搜索</button>
+          </div>
+          <table>
+            <thead><tr><th>ID</th><th>用户名</th><th>昵称</th><th>邮箱</th><th>角色</th><th>状态</th><th>最后登录</th><th>注册时间</th><th>操作</th></tr></thead>
+            <tbody id="usersTableBody"></tbody>
+          </table>
+          <div class="empty-state" id="emptyUsers" style="display:none;"><div class="icon">&#x1F4ED;</div><p>暂无用户</p></div>
+          <div class="pagination" id="usersPagination"></div>
+        </div>
+      </div>
+
+      <!-- Orders -->
+      <div class="page-section" id="page-orders">
+        <div class="page-header"><h1>订单管理</h1></div>
+        <div class="stats" style="grid-template-columns: repeat(4, 1fr);">
+          <div class="stat-card"><div class="label">总订单</div><div class="value" id="statTotalOrders">0</div></div>
+          <div class="stat-card"><div class="label">总收入</div><div class="value" id="statTotalRevenue">$0</div></div>
+          <div class="stat-card"><div class="label">今日订单</div><div class="value" id="statTodayOrders">0</div></div>
+          <div class="stat-card"><div class="label">待支付</div><div class="value" id="statPendingOrders">0</div></div>
+        </div>
+        <div class="card">
+          <div class="search-bar">
+            <input type="text" id="orderSearch" placeholder="搜索订单号/用户名..." onkeyup="if(event.key==='Enter')searchOrders()">
+            <select id="orderFilterStatus" onchange="searchOrders()">
+              <option value="all">全部状态</option>
+              <option value="pending">待支付</option>
+              <option value="paid">已支付</option>
+              <option value="failed">失败</option>
+              <option value="refunded">已退款</option>
+              <option value="cancelled">已取消</option>
+            </select>
+            <select id="orderFilterType" onchange="searchOrders()">
+              <option value="all">全部类型</option>
+              <option value="recharge">充值</option>
+              <option value="purchase">购买</option>
+            </select>
+            <button class="btn btn-primary" onclick="searchOrders()">搜索</button>
+          </div>
+          <table>
+            <thead><tr><th>订单号</th><th>用户</th><th>类型</th><th>金额</th><th>积分</th><th>状态</th><th>支付时间</th><th>创建时间</th></tr></thead>
+            <tbody id="ordersTableBody"></tbody>
+          </table>
+          <div class="empty-state" id="emptyOrders" style="display:none;"><div class="icon">&#x1F4ED;</div><p>暂无订单</p></div>
+          <div class="pagination" id="ordersPagination"></div>
+        </div>
+      </div>
+
+      <!-- Points -->
+      <div class="page-section" id="page-points">
+        <div class="page-header"><h1>积分管理</h1><button class="btn btn-primary" onclick="openAdjustPointsModal()">+ 调整积分</button></div>
+        <div class="card">
+          <table>
+            <thead><tr><th>ID</th><th>用户</th><th>类型</th><th>积分</th><th>变动后余额</th><th>来源</th><th>描述</th><th>时间</th></tr></thead>
+            <tbody id="pointsLogBody"></tbody>
+          </table>
+          <div class="empty-state" id="emptyPointsLog" style="display:none;"><div class="icon">&#x1F4ED;</div><p>暂无积分记录</p></div>
+          <div class="pagination" id="pointsLogPagination"></div>
+        </div>
+      </div>
+
+      <!-- Packages -->
+      <div class="page-section" id="page-packages">
+        <div class="page-header"><h1>充值套餐</h1><button class="btn btn-primary" onclick="openPackageModal()">+ 添加套餐</button></div>
+        <div class="card">
+          <table>
+            <thead><tr><th>ID</th><th>名称</th><th>积分</th><th>赠送</th><th>实际到账</th><th>价格</th><th>状态</th><th>热门</th><th>排序</th><th>操作</th></tr></thead>
+            <tbody id="packagesTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Payment Settings -->
+      <div class="page-section" id="page-payment-settings">
+        <div class="page-header"><h1>支付设置</h1></div>
+        <div class="card">
+          <h3 style="margin-bottom:16px;">PayPal 配置</h3>
+          <div class="form-group"><label>启用 PayPal</label>
+            <select id="paypalEnabled"><option value="false">关闭</option><option value="true">开启</option></select>
+          </div>
+          <div class="form-group"><label>模式</label>
+            <select id="paypalMode"><option value="sandbox">Sandbox (测试环境)</option><option value="live">Live (生产环境)</option></select>
+          </div>
+          <div class="form-group"><label>Client ID</label><input type="text" id="paypalClientId" placeholder="PayPal Client ID"></div>
+          <div class="form-group"><label>Client Secret</label><input type="password" id="paypalClientSecret" placeholder="PayPal Client Secret"></div>
+          <button class="btn btn-primary" onclick="savePaymentSettings()">保存支付设置</button>
+        </div>
+        <div class="card" style="margin-top:24px;">
+          <h3 style="margin-bottom:16px;">积分系统配置</h3>
+          <div class="form-row">
+            <div class="form-group"><label>新用户注册赠送积分</label><input type="number" id="registerBonusPoints" min="0"></div>
+            <div class="form-group"><label>每日签到赠送积分</label><input type="number" id="dailySigninPoints" min="0"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>解锁一集所需积分</label><input type="number" id="pointsPerEpisode" min="1"></div>
+            <div class="form-group"><label>每部剧免费集数</label><input type="number" id="freeEpisodeCount" min="0"></div>
+          </div>
+          <button class="btn btn-primary" onclick="savePointsSettings()">保存积分设置</button>
+        </div>
+
+        <div class="card" style="margin-top:24px;">
+          <h3 style="margin-bottom:16px;">签到连续奖励 (积分)</h3>
+          <p style="color:#999;font-size:13px;margin-bottom:12px;">设置连续签到的里程碑奖励，格式：天数=积分，逗号分隔</p>
+          <div class="form-group"><label>连续签到奖励配置</label><input type="text" id="signinStreakRewards" placeholder="7=50,14=100,30=300"></div>
+          <button class="btn btn-primary" onclick="saveSigninSettings()">保存签到设置</button>
+        </div>
+
+        <div class="card" style="margin-top:24px;">
+          <h3 style="margin-bottom:16px;">分享邀请奖励 (积分)</h3>
+          <div class="form-row">
+            <div class="form-group"><label>分享一次奖励积分</label><input type="number" id="shareRewardPoints" min="0" value="0"></div>
+            <div class="form-group"><label>每日分享上限次数</label><input type="number" id="shareDailyLimit" min="0" value="5"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>邀请注册奖励积分 (邀请人)</label><input type="number" id="inviteRewardPoints" min="0" value="0"></div>
+            <div class="form-group"><label>被邀请人额外奖励积分</label><input type="number" id="inviteeRewardPoints" min="0" value="0"></div>
+          </div>
+          <button class="btn btn-primary" onclick="saveShareSettings()">保存分享设置</button>
+        </div>
+      </div>
+
+      <!-- VIP Plans -->
+      <div class="page-section" id="page-vip-plans">
+        <div class="page-header">
+          <h1>VIP套餐管理</h1>
+          <button class="btn btn-primary" onclick="showVipPlanModal()">+ 添加套餐</button>
+        </div>
+        <div id="vipPlansList"></div>
+      </div>
+
+      <!-- VIP Plan Modal -->
+      <div class="modal-overlay" id="vipPlanModal">
+        <div class="modal">
+          <h2 id="vipPlanModalTitle">添加VIP套餐</h2>
+          <input type="hidden" id="vipPlanId">
+          <div class="form-row">
+            <div class="form-group"><label>套餐名称 *</label><input type="text" id="vipPlanName" placeholder="如：月度会员"></div>
+            <div class="form-group"><label>有效天数 *</label><input type="number" id="vipPlanDays" min="1" placeholder="30"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>价格 (元) *</label><input type="number" id="vipPlanPrice" min="0" step="0.01" placeholder="19.90"></div>
+            <div class="form-group"><label>原价 (元)</label><input type="number" id="vipPlanOriginalPrice" min="0" step="0.01" placeholder="空则不显示"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>免费集数 (VIP每日)</label><input type="number" id="vipPlanFreeEp" min="0" value="0" placeholder="0=全部免费"></div>
+            <div class="form-group"><label>积分加成 (%)</label><input type="number" id="vipPlanPointsBonus" min="0" value="0" placeholder="0=无加成"></div>
+          </div>
+          <div class="form-group"><label>特权描述 (JSON数组)</label><textarea id="vipPlanFeatures" placeholder='["全站剧集免费","专属会员标识","每日签到双倍积分"]' style="height:80px;"></textarea></div>
+          <div class="form-row">
+            <div class="form-group"><label>排序</label><input type="number" id="vipPlanSort" min="0" value="0"></div>
+            <div class="form-group"><label>热门标记</label><select id="vipPlanHot"><option value="0">否</option><option value="1">是</option></select></div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn" onclick="closeModal('vipPlanModal')">取消</button>
+            <button class="btn btn-primary" onclick="saveVipPlan()">保存</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings -->
+      <div class="page-section" id="page-settings">
+        <div class="page-header"><h1>系统设置</h1></div>
+        <div class="card">
+          <h3 style="margin-bottom:16px;">修改密码</h3>
+          <div class="form-group"><label>旧密码</label><input type="password" id="oldPassword" placeholder="请输入旧密码"></div>
+          <div class="form-group"><label>新密码</label><input type="password" id="newPassword" placeholder="请输入新密码（至少6位）"></div>
+          <div class="form-group"><label>确认新密码</label><input type="password" id="confirmPassword" placeholder="请再次输入新密码"></div>
+          <button class="btn btn-primary" onclick="changePassword()">修改密码</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Drama Modal -->
+  <div class="modal-overlay" id="dramaModal">
+    <div class="modal modal-wide">
+      <h2 id="dramaModalTitle">添加短剧</h2>
+      <div class="form-row">
+        <div class="form-group"><label>短剧标题 *</label><input type="text" id="dramaTitle" placeholder="请输入短剧标题"></div>
+        <div class="form-group"><label>分类</label><select id="dramaCategory"></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>标签</label><select id="dramaGenre"><option value="都市">都市</option><option value="古装">古装</option><option value="玄幻">玄幻</option><option value="甜宠">甜宠</option><option value="悬疑">悬疑</option><option value="搞笑">搞笑</option><option value="励志">励志</option><option value="其他">其他</option></select></div>
+        <div class="form-group"><label>状态</label><select id="dramaStatus"><option value="ongoing">连载中</option><option value="completed">已完结</option><option value="draft">草稿</option></select></div>
+      </div>
+      <div class="form-group"><label>短剧简介</label><textarea id="dramaDesc" placeholder="请输入短剧简介" style="height:100px;"></textarea></div>
+      <div class="form-group">
+        <label>封面图片</label>
+        <div class="upload-area" onclick="document.getElementById('coverFileInput').click()">
+          <div style="font-size:36px;">&#x1F5BC;</div>
+          <p>点击选择封面图片</p>
+          <input type="file" id="coverFileInput" accept="image/*" onchange="onCoverFileSelect(event)">
+        </div>
+        <div id="coverPreview" style="margin-top:12px;"></div>
+      </div>
+      <div class="form-actions"><button class="btn btn-secondary" onclick="closeDramaModal()">取消</button><button class="btn btn-primary" onclick="saveDrama()">保存</button></div>
+    </div>
+  </div>
+
+  <!-- Episodes Modal -->
+  <div class="modal-overlay" id="episodesModal">
+    <div class="modal modal-wide">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <h2 id="episodesModalTitle" style="margin:0;">剧集列表</h2>
+        <div id="dramaStatsBar" class="drama-stats"></div>
+      </div>
+      <div id="episodesList"></div>
+      <div class="form-actions"><button class="btn btn-secondary" onclick="closeEpisodesModal()">关闭</button></div>
+    </div>
+  </div>
+
+  <!-- Category Modal -->
+  <div class="modal-overlay" id="categoryModal">
+    <div class="modal" style="width:400px;">
+      <h2 id="categoryModalTitle">添加分类</h2>
+      <div class="form-group"><label>分类名称 *</label><input type="text" id="categoryName" placeholder="请输入分类名称"></div>
+      <div class="form-group"><label>图标 Emoji</label><input type="text" id="categoryIcon" placeholder="例如: &#x1F3D9;"></div>
+      <div class="form-group"><label>排序（数字越小越靠前）</label><input type="number" id="categorySort" value="0" min="0"></div>
+      <div class="form-actions"><button class="btn btn-secondary" onclick="closeCategoryModal()">取消</button><button class="btn btn-primary" onclick="saveCategory()">保存</button></div>
+    </div>
+  </div>
+
+  <!-- Edit Episode Modal -->
+  <div class="modal-overlay" id="editEpisodeModal">
+    <div class="modal" style="width:400px;">
+      <h2>编辑剧集</h2>
+      <input type="hidden" id="editEpId">
+      <input type="hidden" id="editEpDramaId">
+      <div class="form-group"><label>剧集标题</label><input type="text" id="editEpTitle" placeholder="剧集标题"></div>
+      <div class="form-group"><label>排序（数字越小越靠前）</label><input type="number" id="editEpSort" min="0"></div>
+      <div class="form-actions"><button class="btn btn-secondary" onclick="closeEditEpisodeModal()">取消</button><button class="btn btn-primary" onclick="saveEpisode()">保存</button></div>
+    </div>
+  </div>
+
+  <!-- Edit User Modal -->
+  <div class="modal-overlay" id="editUserModal">
+    <div class="modal" style="width:400px;">
+      <h2>编辑用户</h2>
+      <input type="hidden" id="editUserId">
+      <div class="form-group"><label>用户名</label><input type="text" id="editUsername" disabled style="background:#f5f5f5;"></div>
+      <div class="form-group"><label>昵称</label><input type="text" id="editNickname" placeholder="昵称"></div>
+      <div class="form-group"><label>邮箱</label><input type="text" id="editEmail" placeholder="邮箱"></div>
+      <div class="form-group"><label>角色</label><select id="editRole"><option value="user">普通用户</option><option value="admin">管理员</option></select></div>
+      <div class="form-group"><label>状态</label><select id="editStatus"><option value="1">正常</option><option value="0">禁用</option></select></div>
+      <div class="form-actions"><button class="btn btn-secondary" onclick="closeEditUserModal()">取消</button><button class="btn btn-primary" onclick="saveUser()">保存</button></div>
+    </div>
+  </div>
+
+  <!-- Package Modal -->
+  <div class="modal-overlay" id="packageModal">
+    <div class="modal" style="width:450px;">
+      <h2 id="packageModalTitle">添加套餐</h2>
+      <input type="hidden" id="editPackageId">
+      <div class="form-group"><label>套餐名称 *</label><input type="text" id="packageName" placeholder="例如：超值包"></div>
+      <div class="form-row">
+        <div class="form-group"><label>积分数量 *</label><input type="number" id="packagePoints" min="1" placeholder="1000"></div>
+        <div class="form-group"><label>赠送积分</label><input type="number" id="packageBonus" min="0" value="0"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>价格 (USD) *</label><input type="number" id="packagePrice" min="0.01" step="0.01" placeholder="9.99"></div>
+        <div class="form-group"><label>排序</label><input type="number" id="packageSort" min="0" value="0"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>状态</label><select id="packageStatus"><option value="1">启用</option><option value="0">禁用</option></select></div>
+        <div class="form-group"><label>热门推荐</label><select id="packageHot"><option value="0">普通</option><option value="1">热门</option></select></div>
+      </div>
+      <div class="form-actions"><button class="btn btn-secondary" onclick="closePackageModal()">取消</button><button class="btn btn-primary" onclick="savePackage()">保存</button></div>
+    </div>
+  </div>
+
+  <!-- Adjust Points Modal -->
+  <div class="modal-overlay" id="adjustPointsModal">
+    <div class="modal" style="width:450px;">
+      <h2>调整用户积分</h2>
+      <div class="form-group"><label>用户ID *</label><input type="number" id="adjustUserId" placeholder="输入用户ID"></div>
+      <div class="form-group"><label>积分变动（正数增加，负数扣减） *</label><input type="number" id="adjustAmount" placeholder="例如：100 或 -50"></div>
+      <div class="form-group"><label>原因说明 *</label><input type="text" id="adjustDesc" placeholder="例如：活动赠送"></div>
+      <div class="form-actions"><button class="btn btn-secondary" onclick="closeAdjustPointsModal()">取消</button><button class="btn btn-primary" onclick="doAdjustPoints()">确认调整</button></div>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api';
+    let adminToken = '';
+    let adminInfo = { id: 0, username: '', role: '' };
+    let editingDramaId = null;
+    let editingCategoryId = null;
+    let coverFile = null;
+    let selectedVideoFile = null;
+
+    // State
+    let dramaPage = 1, dramaPageSize = 10;
+    let userPage = 1, userPageSize = 20;
+    let orderPage = 1, orderPageSize = 20;
+    let pointsLogPage = 1, pointsLogPageSize = 20;
+    let editingPackageId = null;
+
+    function authHeaders() {
+      return adminToken ? { 'Authorization': 'Bearer ' + adminToken } : {};
+    }
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+    function showToast(msg, type) {
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.className = 'toast ' + type; t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 3000);
+    }
+
+    function formatDateTime(dt) {
+      if (!dt) return '-';
+      return new Date(dt).toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    }
+
+    // ===== Login / Logout =====
+    async function login() {
+      const username = document.getElementById('loginUsername').value;
+      const password = document.getElementById('loginPassword').value;
+      try {
+        const res = await fetch(API + '/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
+        const data = await res.json();
+        console.log('[login] status:', res.status, 'data:', JSON.stringify(data));
+        if (data.success) {
+          adminToken = data.data.token;
+          adminInfo = { id: data.data.id, username: data.data.username, role: data.data.role };
+          document.getElementById('loginPage').style.display = 'none';
+          document.getElementById('app').style.display = 'block';
+          document.getElementById('adminName').textContent = data.data.nickname || data.data.username;
+          loadDashboard(); loadDramas(); loadDramaOptions(); loadCategories();
+          loadOrders(); loadPackages(); loadPointsLog(); loadPaymentSettings(); loadPointsSettings();
+        } else {
+          document.getElementById('loginError').style.display = 'block';
+          setTimeout(() => document.getElementById('loginError').style.display = 'none', 3000);
+        }
+      } catch (e) { showToast('连接服务器失败', 'error'); }
+    }
+
+    function logout() {
+      adminToken = ''; adminInfo = { id: 0, username: '', role: '' };
+      document.getElementById('app').style.display = 'none';
+      document.getElementById('loginPage').style.display = 'flex';
+    }
+
+    // ===== Page Switching =====
+    function switchPage(page, el) {
+      document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.sidebar nav a').forEach(a => a.classList.remove('active'));
+      document.getElementById('page-' + page).classList.add('active');
+      if (el) el.classList.add('active');
+      if (page === 'dashboard') loadDashboard();
+      if (page === 'dramas') loadDramas();
+      if (page === 'upload') loadDramaOptions();
+      if (page === 'categories') loadCategories();
+      if (page === 'users') loadUsers();
+      if (page === 'vip-plans') loadVipPlans();
+      if (page === 'payment-settings') { loadPointsSettings(); loadExtraSettings(); }
+    }
+
+    // ===== Dashboard =====
+    async function loadDashboard() {
+      try {
+        const res = await fetch(API + '/dashboard', { headers: authHeaders() });
+        const { data } = await res.json();
+        document.getElementById('statDramas').textContent = data.dramaCount;
+        document.getElementById('statEpisodes').textContent = data.episodeCount;
+        document.getElementById('statUsers').textContent = data.userCount;
+        document.getElementById('statToday').textContent = data.recentDramas.length ? new Date(data.recentDramas[0].created_at).toLocaleDateString() === new Date().toLocaleDateString() ? '1' : '0' : '0';
+        document.getElementById('recentDramas').innerHTML = data.recentDramas.length
+          ? '<table><thead><tr><th>标题</th><th>分类</th><th>集数</th><th>播放量</th><th>创建时间</th></tr></thead><tbody>' + data.recentDramas.map(d => '<tr><td>' + esc(d.title) + '</td><td>' + esc(d.genre || d.category_name || '-') + '</td><td>' + (d.episode_count || 0) + '集</td><td>' + (d.view_count || 0) + '</td><td>' + formatDateTime(d.created_at) + '</td></tr>').join('') + '</tbody></table>'
+          : '<div class="empty-state"><div class="icon">&#x1F4ED;</div><p>暂无数据</p></div>';
+      } catch (e) { console.error(e); }
+    }
+
+    // ===== Dramas =====
+    async function loadDramas(page) {
+      if (page !== undefined) dramaPage = page;
+      try {
+        const keyword = document.getElementById('dramaSearch')?.value || '';
+        const status = document.getElementById('dramaFilterStatus')?.value || 'all';
+        const url = API + '/dramas?page=' + dramaPage + '&pageSize=' + dramaPageSize + '&status=' + status + (keyword ? '&keyword=' + encodeURIComponent(keyword) : '');
+        const res = await fetch(url);
+        const { data } = await res.json();
+        const tbody = document.getElementById('dramasTableBody');
+        const empty = document.getElementById('emptyDramas');
+        if (!data.list.length) { tbody.innerHTML = ''; empty.style.display = 'block'; document.getElementById('dramasPagination').innerHTML = ''; return; }
+        empty.style.display = 'none';
+        tbody.innerHTML = data.list.map(d => '<tr>'
+          + '<td><img class="cover-thumb" src="' + (d.cover_image || '') + '" onerror="this.style.display=\'none\'"></td>'
+          + '<td><strong>' + esc(d.title) + '</strong><br><small style="color:#999">' + esc((d.description || '').substring(0, 40)) + (d.description && d.description.length > 40 ? '...' : '') + '</small></td>'
+          + '<td>' + esc(d.genre || d.category_name || '-') + '</td>'
+          + '<td><span class="badge badge-' + d.status + '">' + ({ ongoing: '连载中', completed: '已完结', draft: '草稿' }[d.status] || d.status) + '</span></td>'
+          + '<td>' + (d.episode_count || 0) + '集</td>'
+          + '<td><small>' + (d.view_count || 0) + ' / ' + (d.like_count || 0) + ' / ' + (d.collect_count || 0) + '</small></td>'
+          + '<td>' + formatDateTime(d.created_at) + '</td>'
+          + '<td><div class="btn-group">'
+          + '<button class="btn btn-sm btn-secondary" onclick="viewEpisodes(' + d.id + ',\'' + esc(d.title).replace(/'/g, "\\'") + '\')">剧集</button> '
+          + '<button class="btn btn-sm btn-secondary" onclick="editDrama(' + d.id + ')">编辑</button> '
+          + '<button class="btn btn-sm btn-danger" onclick="deleteDrama(' + d.id + ',\'' + esc(d.title).replace(/'/g, "\\'") + '\')">删除</button>'
+          + '</div></td></tr>').join('');
+        renderPagination('dramasPagination', data, dramaPage, (p) => loadDramas(p));
+      } catch (e) { console.error(e); }
+    }
+
+    function searchDramas() { dramaPage = 1; loadDramas(); }
+
+    function renderPagination(containerId, data, currentPage, callback) {
+      const el = document.getElementById(containerId);
+      if (!data.totalPages || data.totalPages <= 1) { el.innerHTML = ''; return; }
+      let html = '<button ' + (currentPage <= 1 ? 'disabled' : '') + ' onclick="(' + callback.toString() + ')(' + (currentPage - 1) + ')">上一页</button>';
+      html += '<span>' + currentPage + ' / ' + data.totalPages + '</span>';
+      html += '<button ' + (currentPage >= data.totalPages ? 'disabled' : '') + ' onclick="(' + callback.toString() + ')(' + (currentPage + 1) + ')">下一页</button>';
+      el.innerHTML = html;
+    }
+
+    function openAddDramaModal() {
+      editingDramaId = null;
+      document.getElementById('dramaModalTitle').textContent = '添加短剧';
+      document.getElementById('dramaTitle').value = '';
+      document.getElementById('dramaCategory').value = '';
+      document.getElementById('dramaGenre').value = '都市';
+      document.getElementById('dramaDesc').value = '';
+      document.getElementById('dramaStatus').value = 'ongoing';
+      document.getElementById('coverPreview').innerHTML = '';
+      coverFile = null;
+      loadCategoryOptions();
+      document.getElementById('dramaModal').classList.add('active');
+    }
+
+    async function editDrama(id) {
+      editingDramaId = id;
+      try {
+        const res = await fetch(API + '/dramas/' + id);
+        const { data } = await res.json();
+        loadCategoryOptions();
+        document.getElementById('dramaModalTitle').textContent = '编辑短剧';
+        document.getElementById('dramaTitle').value = data.title;
+        document.getElementById('dramaCategory').value = data.category_id || '';
+        document.getElementById('dramaGenre').value = data.genre || '都市';
+        document.getElementById('dramaDesc').value = data.description || '';
+        document.getElementById('dramaStatus').value = data.status;
+        document.getElementById('coverPreview').innerHTML = data.cover_image ? '<img src="' + data.cover_image + '" style="max-width:200px;border-radius:8px;">' : '';
+        coverFile = null;
+        document.getElementById('dramaModal').classList.add('active');
+      } catch (e) { showToast('加载失败', 'error'); }
+    }
+
+    function closeDramaModal() { document.getElementById('dramaModal').classList.remove('active'); }
+
+    async function saveDrama() {
+      const title = document.getElementById('dramaTitle').value.trim();
+      if (!title) return showToast('请输入标题', 'error');
+      const payload = {
+        title,
+        category_id: document.getElementById('dramaCategory').value ? Number(document.getElementById('dramaCategory').value) : null,
+        genre: document.getElementById('dramaGenre').value,
+        description: document.getElementById('dramaDesc').value,
+        status: document.getElementById('dramaStatus').value
+      };
+      try {
+        if (coverFile) {
+          const fd = new FormData(); fd.append('file', coverFile);
+          const ur = await fetch('/api/upload/cover', { method: 'POST', body: fd, headers: adminToken ? { 'Authorization': 'Bearer ' + adminToken } : {} });
+          const ud = await ur.json();
+          if (ud.success) payload.cover_image = ud.data.path;
+        }
+        if (editingDramaId) {
+          await fetch(API + '/dramas/' + editingDramaId, { method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify(payload) });
+        } else {
+          await fetch(API + '/dramas', { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify(payload) });
+        }
+        closeDramaModal(); loadDramas(); loadDashboard(); loadDramaOptions();
+        showToast(editingDramaId ? '修改成功' : '添加成功', 'success');
+      } catch (e) { showToast('操作失败', 'error'); }
+    }
+
+    async function deleteDrama(id, title) {
+      if (!confirm('确定删除「' + title + '」？所有剧集和视频文件将被永久删除！')) return;
+      try {
+        const res = await fetch(API + '/dramas/' + id, { method: 'DELETE', headers: authHeaders() });
+        const data = await res.json();
+        if (data.success) { loadDramas(); loadDashboard(); loadDramaOptions(); showToast('删除成功', 'success'); }
+        else showToast(data.message || '删除失败', 'error');
+      } catch (e) { showToast('删除失败', 'error'); }
+    }
+
+    // ===== Episodes =====
+    let currentEpisodesDramaId = null;
+    async function viewEpisodes(dramaId, dramaTitle) {
+      currentEpisodesDramaId = dramaId;
+      document.getElementById('episodesModalTitle').textContent = dramaTitle + ' - 剧集列表';
+      try {
+        const res = await fetch(API + '/dramas/' + dramaId);
+        const { data } = await res.json();
+        // Stats bar
+        document.getElementById('dramaStatsBar').innerHTML =
+          '<div class="stat-item"><div class="num">' + (data.view_count || 0) + '</div><div class="lbl">播放</div></div>'
+          + '<div class="stat-item"><div class="num">' + (data.like_count || 0) + '</div><div class="lbl">喜欢</div></div>'
+          + '<div class="stat-item"><div class="num">' + (data.collect_count || 0) + '</div><div class="lbl">收藏</div></div>';
+
+        document.getElementById('episodesList').innerHTML = !data.episodes.length
+          ? '<div class="empty-state"><p>暂无剧集，请前往「上传视频」页面添加</p></div>'
+          : data.episodes.map((ep, i) => '<div class="episode-item">'
+            + '<div style="display:flex;align-items:center;">'
+            + '<span class="episode-num">' + ep.episode_number + '</span>'
+            + '<div><strong>第' + ep.episode_number + '集</strong>' + (ep.title ? ' - ' + esc(ep.title) : '') + '<br>'
+            + '<small style="color:#999">时长: ' + (ep.duration ? Math.floor(ep.duration / 60) + '分' + (ep.duration % 60) + '秒' : '未知') + ' | 排序: ' + ep.sort_order + ' | 添加: ' + formatDateTime(ep.created_at) + '</small></div>'
+            + '</div>'
+            + '<div class="btn-group">'
+            + '<button class="btn btn-sm btn-secondary" onclick="editEpisode(' + ep.id + ',' + dramaId + ',\'' + esc(ep.title || '').replace(/'/g, "\\'") + '\',' + ep.sort_order + ')">编辑</button>'
+            + '<button class="btn btn-sm btn-danger" onclick="deleteEpisode(' + dramaId + ',' + ep.id + ',' + ep.episode_number + ')">删除</button>'
+            + '</div></div>').join('');
+        document.getElementById('episodesModal').classList.add('active');
+      } catch (e) { showToast('加载失败', 'error'); }
+    }
+
+    function closeEpisodesModal() { document.getElementById('episodesModal').classList.remove('active'); }
+
+    async function deleteEpisode(dramaId, episodeId, epNum) {
+      if (!confirm('确定删除第' + epNum + '集？视频文件将被永久删除！')) return;
+      try {
+        await fetch(API + '/dramas/' + dramaId + '/episodes/' + episodeId, { method: 'DELETE', headers: authHeaders() });
+        showToast('删除成功', 'success');
+        viewEpisodes(dramaId, document.getElementById('episodesModalTitle').textContent.replace(' - 剧集列表', ''));
+        loadDramas();
+      } catch (e) { showToast('删除失败', 'error'); }
+    }
+
+    function editEpisode(id, dramaId, title, sortOrder) {
+      document.getElementById('editEpId').value = id;
+      document.getElementById('editEpDramaId').value = dramaId;
+      document.getElementById('editEpTitle').value = title;
+      document.getElementById('editEpSort').value = sortOrder;
+      document.getElementById('editEpisodeModal').classList.add('active');
+    }
+    function closeEditEpisodeModal() { document.getElementById('editEpisodeModal').classList.remove('active'); }
+
+    async function saveEpisode() {
+      const id = document.getElementById('editEpId').value;
+      const dramaId = document.getElementById('editEpDramaId').value;
+      try {
+        await fetch(API + '/dramas/' + dramaId + '/episodes/' + id, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ title: document.getElementById('editEpTitle').value, sort_order: Number(document.getElementById('editEpSort').value) })
+        });
+        closeEditEpisodeModal();
+        showToast('修改成功', 'success');
+        viewEpisodes(Number(dramaId), document.getElementById('episodesModalTitle').textContent.replace(' - 剧集列表', ''));
+      } catch (e) { showToast('修改失败', 'error'); }
+    }
+
+    // ===== Upload =====
+    async function loadDramaOptions() {
+      try {
+        const res = await fetch(API + '/dramas?pageSize=100');
+        const { data } = await res.json();
+        const sel = document.getElementById('uploadDramaId');
+        sel.innerHTML = data.list.length ? '<option value="">请选择短剧</option>' + data.list.map(d => '<option value="' + d.id + '">' + esc(d.title) + ' (' + (d.episode_count || 0) + '集)</option>').join('') : '<option value="">请先添加短剧</option>';
+      } catch (e) { console.error(e); }
+    }
+
+    function onVideoFileSelect(e) {
+      selectedVideoFile = e.target.files[0];
+      document.getElementById('videoPreview').innerHTML = selectedVideoFile ? '&#x2705; 已选择: <strong>' + esc(selectedVideoFile.name) + '</strong> (' + (selectedVideoFile.size / 1024 / 1024).toFixed(1) + ' MB)' : '';
+    }
+
+    async function uploadVideo() {
+      const dramaId = document.getElementById('uploadDramaId').value;
+      const epNum = document.getElementById('uploadEpisodeNum').value;
+      const epTitle = document.getElementById('uploadEpisodeTitle').value;
+      if (!dramaId) return showToast('请选择短剧', 'error');
+      if (!epNum) return showToast('请输入集数', 'error');
+      if (!selectedVideoFile) return showToast('请选择视频文件', 'error');
+      const formData = new FormData();
+      formData.append('video', selectedVideoFile);
+      formData.append('dramaId', dramaId);
+      formData.append('episode_number', epNum);
+      formData.append('title', epTitle);
+      const btn = document.getElementById('uploadBtn');
+      btn.textContent = '上传中...'; btn.disabled = true;
+      const progressEl = document.getElementById('uploadProgress');
+      const progressFill = document.getElementById('uploadProgressFill');
+      const progressText = document.getElementById('uploadProgressText');
+      progressEl.classList.add('active');
+      try {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/upload/video');
+        if (adminToken) xhr.setRequestHeader('Authorization', 'Bearer ' + adminToken);
+        xhr.upload.onprogress = function(e) {
+          if (e.lengthComputable) {
+            const pct = Math.round((e.loaded / e.total) * 100);
+            progressFill.style.width = pct + '%';
+            progressText.textContent = '上传中... ' + pct + '%';
+          }
+        };
+        xhr.onload = function() {
+          progressEl.classList.remove('active');
+          progressFill.style.width = '0%';
+          const data = JSON.parse(xhr.responseText);
+          if (data.success) {
+            showToast('上传成功！', 'success');
+            document.getElementById('uploadEpisodeNum').value = String(parseInt(epNum) + 1);
+            document.getElementById('uploadEpisodeTitle').value = '';
+            document.getElementById('videoPreview').innerHTML = '';
+            document.getElementById('videoFileInput').value = '';
+            selectedVideoFile = null;
+            loadDramas(); loadDramaOptions();
+          } else { showToast(data.message || '上传失败', 'error'); }
+        };
+        xhr.onerror = function() { progressEl.classList.remove('active'); showToast('上传失败', 'error'); };
+        xhr.send(formData);
+      } catch (e) { progressEl.classList.remove('active'); showToast('上传失败', 'error'); }
+      finally { btn.textContent = '开始上传'; btn.disabled = false; }
+    }
+
+    function onCoverFileSelect(e) {
+      coverFile = e.target.files[0];
+      if (coverFile) { const r = new FileReader(); r.onload = (ev) => { document.getElementById('coverPreview').innerHTML = '<img src="' + ev.target.result + '" style="max-width:200px;border-radius:8px;">'; }; r.readAsDataURL(coverFile); }
+    }
+
+    // ===== Categories =====
+    async function loadCategories() {
+      try {
+        const res = await fetch(API + '/categories/with-count');
+        const { data } = await res.json();
+        const tbody = document.getElementById('categoriesTableBody');
+        const empty = document.getElementById('emptyCategories');
+        if (!data.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+        empty.style.display = 'none';
+        tbody.innerHTML = data.map(c => '<tr>'
+          + '<td>' + c.id + '</td>'
+          + '<td style="font-size:24px;">' + esc(c.icon || '') + '</td>'
+          + '<td><strong>' + esc(c.name) + '</strong></td>'
+          + '<td>' + c.drama_count + '</td>'
+          + '<td>' + c.sort_order + '</td>'
+          + '<td><div class="btn-group">'
+          + '<button class="btn btn-sm btn-secondary" onclick="editCategory(' + c.id + ',\'' + esc(c.name).replace(/'/g, "\\'") + '\',\'' + esc(c.icon || '').replace(/'/g, "\\'") + '\',' + c.sort_order + ')">编辑</button> '
+          + '<button class="btn btn-sm btn-danger" onclick="deleteCategory(' + c.id + ',\'' + esc(c.name).replace(/'/g, "\\'") + '\')">删除</button>'
+          + '</div></td></tr>').join('');
+      } catch (e) { console.error(e); }
+    }
+
+    function loadCategoryOptions() {
+      fetch(API + '/categories').then(r => r.json()).then(({ data }) => {
+        const sel = document.getElementById('dramaCategory');
+        sel.innerHTML = '<option value="">不选择分类</option>' + data.map(c => '<option value="' + c.id + '">' + esc(c.icon || '') + ' ' + esc(c.name) + '</option>').join('');
+      }).catch(console.error);
+    }
+
+    function openAddCategoryModal() {
+      editingCategoryId = null;
+      document.getElementById('categoryModalTitle').textContent = '添加分类';
+      document.getElementById('categoryName').value = '';
+      document.getElementById('categoryIcon').value = '';
+      document.getElementById('categorySort').value = '0';
+      document.getElementById('categoryModal').classList.add('active');
+    }
+
+    function editCategory(id, name, icon, sortOrder) {
+      editingCategoryId = id;
+      document.getElementById('categoryModalTitle').textContent = '编辑分类';
+      document.getElementById('categoryName').value = name;
+      document.getElementById('categoryIcon').value = icon;
+      document.getElementById('categorySort').value = sortOrder;
+      document.getElementById('categoryModal').classList.add('active');
+    }
+
+    function closeCategoryModal() { document.getElementById('categoryModal').classList.remove('active'); }
+
+    async function saveCategory() {
+      const name = document.getElementById('categoryName').value.trim();
+      if (!name) return showToast('请输入分类名称', 'error');
+      const payload = { name, icon: document.getElementById('categoryIcon').value, sort_order: Number(document.getElementById('categorySort').value) || 0 };
+      try {
+        if (editingCategoryId) {
+          await fetch(API + '/categories/' + editingCategoryId, { method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify(payload) });
+        } else {
+          await fetch(API + '/categories', { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify(payload) });
+        }
+        closeCategoryModal(); loadCategories(); loadCategoryOptions();
+        showToast(editingCategoryId ? '修改成功' : '添加成功', 'success');
+      } catch (e) { showToast('操作失败', 'error'); }
+    }
+
+    async function deleteCategory(id, name) {
+      if (!confirm('确定删除分类「' + name + '」？该分类下的短剧不会被删除。')) return;
+      try {
+        await fetch(API + '/categories/' + id, { method: 'DELETE', headers: authHeaders() });
+        loadCategories(); showToast('删除成功', 'success');
+      } catch (e) { showToast('删除失败', 'error'); }
+    }
+
+    // ===== Users =====
+    async function loadUsers(page) {
+      if (page !== undefined) userPage = page;
+      try {
+        const keyword = document.getElementById('userSearch')?.value || '';
+        const role = document.getElementById('userFilterRole')?.value || 'all';
+        const url = API + '/admin/users?page=' + userPage + '&pageSize=' + userPageSize + '&role=' + role + (keyword ? '&keyword=' + encodeURIComponent(keyword) : '');
+        const res = await fetch(url, { headers: authHeaders() });
+        const { data } = await res.json();
+        const tbody = document.getElementById('usersTableBody');
+        const empty = document.getElementById('emptyUsers');
+        if (!data.list.length) { tbody.innerHTML = ''; empty.style.display = 'block'; document.getElementById('usersPagination').innerHTML = ''; return; }
+        empty.style.display = 'none';
+        tbody.innerHTML = data.list.map(u => '<tr>'
+          + '<td>' + u.id + '</td>'
+          + '<td>' + esc(u.username) + '</td>'
+          + '<td>' + esc(u.nickname || '-') + '</td>'
+          + '<td>' + esc(u.email || '-') + '</td>'
+          + '<td><span class="badge badge-' + u.role + '">' + (u.role === 'admin' ? '管理员' : '用户') + '</span></td>'
+          + '<td><span class="badge badge-' + (u.status ? 'active' : 'disabled') + '">' + (u.status ? '正常' : '禁用') + '</span></td>'
+          + '<td>' + formatDateTime(u.last_login_at) + '</td>'
+          + '<td>' + formatDateTime(u.created_at) + '</td>'
+          + '<td><div class="btn-group">'
+          + '<button class="btn btn-sm btn-secondary" onclick="editUser(' + u.id + ',\'' + esc(u.username).replace(/'/g, "\\'") + '\',\'' + esc(u.nickname || '').replace(/'/g, "\\'") + '\',\'' + esc(u.email || '').replace(/'/g, "\\'") + '\',\'' + u.role + '\',' + u.status + ')">编辑</button> '
+          + (u.role !== 'admin' ? '<button class="btn btn-sm btn-danger" onclick="deleteUser(' + u.id + ',\'' + esc(u.username).replace(/'/g, "\\'") + '\')">删除</button>' : '')
+          + '</div></td></tr>').join('');
+        renderPagination('usersPagination', data, userPage, (p) => loadUsers(p));
+      } catch (e) { console.error(e); }
+    }
+
+    function searchUsers() { userPage = 1; loadUsers(); }
+
+    function editUser(id, username, nickname, email, role, status) {
+      document.getElementById('editUserId').value = id;
+      document.getElementById('editUsername').value = username;
+      document.getElementById('editNickname').value = nickname;
+      document.getElementById('editEmail').value = email;
+      document.getElementById('editRole').value = role;
+      document.getElementById('editStatus').value = status;
+      document.getElementById('editUserModal').classList.add('active');
+    }
+    function closeEditUserModal() { document.getElementById('editUserModal').classList.remove('active'); }
+
+    async function saveUser() {
+      const id = document.getElementById('editUserId').value;
+      try {
+        await fetch(API + '/admin/users/' + id, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({
+            nickname: document.getElementById('editNickname').value,
+            email: document.getElementById('editEmail').value,
+            role: document.getElementById('editRole').value,
+            status: Number(document.getElementById('editStatus').value)
+          })
+        });
+        closeEditUserModal(); loadUsers();
+        showToast('修改成功', 'success');
+      } catch (e) { showToast('修改失败', 'error'); }
+    }
+
+    async function deleteUser(id, username) {
+      if (!confirm('确定删除用户「' + username + '」？该用户的所有数据将被删除！')) return;
+      try {
+        const res = await fetch(API + '/admin/users/' + id, { method: 'DELETE', headers: authHeaders() });
+        const data = await res.json();
+        if (data.success) { loadUsers(); showToast('删除成功', 'success'); }
+        else showToast(data.message || '删除失败', 'error');
+      } catch (e) { showToast('删除失败', 'error'); }
+    }
+
+    // ===== Settings =====
+    async function changePassword() {
+      const oldPwd = document.getElementById('oldPassword').value;
+      const newPwd = document.getElementById('newPassword').value;
+      const confirmPwd = document.getElementById('confirmPassword').value;
+      if (!oldPwd || !newPwd) return showToast('请填写完整', 'error');
+      if (newPwd.length < 6) return showToast('新密码至少6位', 'error');
+      if (newPwd !== confirmPwd) return showToast('两次密码不一致', 'error');
+      try {
+        const res = await fetch(API + '/admin/change-password', {
+          method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ oldPassword: oldPwd, newPassword: newPwd })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('密码修改成功', 'success'); document.getElementById('oldPassword').value = ''; document.getElementById('newPassword').value = ''; document.getElementById('confirmPassword').value = ''; }
+        else showToast(data.message || '修改失败', 'error');
+      } catch (e) { showToast('修改失败', 'error'); }
+    }
+
+    // ===== Orders =====
+    async function loadOrders(page) {
+      if (page !== undefined) orderPage = page;
+      try {
+        const keyword = document.getElementById('orderSearch')?.value || '';
+        const status = document.getElementById('orderFilterStatus')?.value || 'all';
+        const type = document.getElementById('orderFilterType')?.value || 'all';
+        let url = API + '/admin/orders?page=' + orderPage + '&pageSize=' + orderPageSize;
+        if (status !== 'all') url += '&status=' + status;
+        if (type !== 'all') url += '&type=' + type;
+        if (keyword) url += '&keyword=' + encodeURIComponent(keyword);
+        const res = await fetch(url, { headers: authHeaders() });
+        const { data } = await res.json();
+        const tbody = document.getElementById('ordersTableBody');
+        const empty = document.getElementById('emptyOrders');
+        if (!data.list.length) { tbody.innerHTML = ''; empty.style.display = 'block'; document.getElementById('ordersPagination').innerHTML = ''; return; }
+        empty.style.display = 'none';
+        const statusMap = { pending: '待支付', paid: '已支付', failed: '失败', refunded: '已退款', cancelled: '已取消' };
+        const typeMap = { recharge: '充值', purchase: '购买' };
+        tbody.innerHTML = data.list.map(o => '<tr>'
+          + '<td style="font-size:12px;">' + esc(o.order_no) + '</td>'
+          + '<td>' + esc(o.username || '-') + '</td>'
+          + '<td>' + (typeMap[o.type] || o.type) + '</td>'
+          + '<td>$' + parseFloat(o.total_amount).toFixed(2) + '</td>'
+          + '<td>' + (o.type === 'recharge' ? '+' + o.points_amount : '-' + o.points_cost) + '</td>'
+          + '<td><span class="badge badge-' + o.status + '">' + (statusMap[o.status] || o.status) + '</span></td>'
+          + '<td>' + formatDateTime(o.paid_at) + '</td>'
+          + '<td>' + formatDateTime(o.created_at) + '</td>'
+          + '</tr>').join('');
+        renderPagination('ordersPagination', data, orderPage, (p) => loadOrders(p));
+        // Load stats
+        loadOrderStats();
+      } catch (e) { console.error(e); }
+    }
+    function searchOrders() { orderPage = 1; loadOrders(); }
+
+    async function loadOrderStats() {
+      try {
+        const res = await fetch(API + '/admin/order-stats', { headers: authHeaders() });
+        const { data } = await res.json();
+        document.getElementById('statTotalOrders').textContent = data.totalOrders;
+        document.getElementById('statTotalRevenue').textContent = '$' + data.totalRevenue.toFixed(2);
+        document.getElementById('statTodayOrders').textContent = data.todayOrders;
+        document.getElementById('statPendingOrders').textContent = data.pendingOrders;
+      } catch (e) {}
+    }
+
+    // ===== Points =====
+    async function loadPointsLog(page) {
+      if (page !== undefined) pointsLogPage = page;
+      try {
+        const url = API + '/admin/points-log?page=' + pointsLogPage + '&pageSize=' + pointsLogPageSize;
+        const res = await fetch(url, { headers: authHeaders() });
+        const { data } = await res.json();
+        const tbody = document.getElementById('pointsLogBody');
+        const empty = document.getElementById('emptyPointsLog');
+        if (!data.list.length) { tbody.innerHTML = ''; empty.style.display = 'block'; document.getElementById('pointsLogPagination').innerHTML = ''; return; }
+        empty.style.display = 'none';
+        const typeMap = { earn: '获得', spend: '消费', refund: '退款', admin_add: '管理员增加', admin_subtract: '管理员扣减' };
+        tbody.innerHTML = data.list.map(p => '<tr>'
+          + '<td>' + p.id + '</td>'
+          + '<td>' + esc(p.username || 'ID:' + p.user_id) + '</td>'
+          + '<td><span class="badge badge-' + p.type + '">' + (typeMap[p.type] || p.type) + '</span></td>'
+          + '<td>' + (p.type === 'spend' || p.type === 'admin_subtract' ? '-' : '+') + p.amount + '</td>'
+          + '<td>' + p.balance_after + '</td>'
+          + '<td>' + esc(p.source || '-') + '</td>'
+          + '<td>' + esc(p.description || '-') + '</td>'
+          + '<td>' + formatDateTime(p.created_at) + '</td>'
+          + '</tr>').join('');
+        renderPagination('pointsLogPagination', data, pointsLogPage, (p) => loadPointsLog(p));
+      } catch (e) { console.error(e); }
+    }
+
+    function openAdjustPointsModal() { document.getElementById('adjustPointsModal').classList.add('active'); }
+    function closeAdjustPointsModal() { document.getElementById('adjustPointsModal').classList.remove('active'); document.getElementById('adjustUserId').value = ''; document.getElementById('adjustAmount').value = ''; document.getElementById('adjustDesc').value = ''; }
+
+    async function doAdjustPoints() {
+      const userId = document.getElementById('adjustUserId').value;
+      const amount = document.getElementById('adjustAmount').value;
+      const desc = document.getElementById('adjustDesc').value;
+      if (!userId || !amount || !desc) return showToast('请填写完整信息', 'error');
+      try {
+        const res = await fetch(API + '/admin/points/adjust', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ userId: Number(userId), amount: Number(amount), description: desc })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('积分调整成功，当前余额: ' + data.data.balance, 'success'); closeAdjustPointsModal(); loadPointsLog(); }
+        else showToast(data.message || '操作失败', 'error');
+      } catch (e) { showToast('操作失败', 'error'); }
+    }
+
+    // ===== Packages =====
+    async function loadPackages() {
+      try {
+        const res = await fetch(API + '/admin/packages', { headers: authHeaders() });
+        const { data } = await res.json();
+        const tbody = document.getElementById('packagesTableBody');
+        tbody.innerHTML = data.map(p => '<tr>'
+          + '<td>' + p.id + '</td>'
+          + '<td>' + esc(p.name) + '</td>'
+          + '<td>' + p.points + '</td>'
+          + '<td>' + (p.bonus_points > 0 ? '+' + p.bonus_points : '-') + '</td>'
+          + '<td><strong>' + (p.points + p.bonus_points) + '</strong></td>'
+          + '<td>$' + parseFloat(p.price).toFixed(2) + '</td>'
+          + '<td><span class="badge badge-' + (p.status ? 'active' : 'disabled') + '">' + (p.status ? '启用' : '禁用') + '</span></td>'
+          + '<td>' + (p.is_hot ? '<span class="badge badge-hot">热门</span>' : '-') + '</td>'
+          + '<td>' + p.sort_order + '</td>'
+          + '<td><div class="btn-group">'
+          + '<button class="btn btn-sm btn-secondary" onclick="editPackage(' + p.id + ')">编辑</button> '
+          + '<button class="btn btn-sm btn-danger" onclick="deletePackage(' + p.id + ',\'' + esc(p.name) + '\')">删除</button>'
+          + '</div></td></tr>').join('');
+      } catch (e) { console.error(e); }
+    }
+
+    function openPackageModal() { editingPackageId = null; document.getElementById('packageModalTitle').textContent = '添加套餐'; document.getElementById('editPackageId').value = ''; document.getElementById('packageName').value = ''; document.getElementById('packagePoints').value = ''; document.getElementById('packageBonus').value = '0'; document.getElementById('packagePrice').value = ''; document.getElementById('packageSort').value = '0'; document.getElementById('packageStatus').value = '1'; document.getElementById('packageHot').value = '0'; document.getElementById('packageModal').classList.add('active'); }
+    function closePackageModal() { document.getElementById('packageModal').classList.remove('active'); }
+
+    function editPackage(id) {
+      openPackageModal();
+      editingPackageId = id;
+      const row = document.querySelector('#packagesTableBody tr:has(button[onclick*="' + id + '"])');
+      if (!row) return;
+      // Fetch fresh data
+      fetch(API + '/admin/packages', { headers: authHeaders() }).then(r => r.json()).then(({ data }) => {
+        const p = data.find(x => x.id === id);
+        if (!p) return;
+        document.getElementById('packageModalTitle').textContent = '编辑套餐';
+        document.getElementById('packageName').value = p.name;
+        document.getElementById('packagePoints').value = p.points;
+        document.getElementById('packageBonus').value = p.bonus_points;
+        document.getElementById('packagePrice').value = p.price;
+        document.getElementById('packageSort').value = p.sort_order;
+        document.getElementById('packageStatus').value = p.status;
+        document.getElementById('packageHot').value = p.is_hot;
+      });
+    }
+
+    async function savePackage() {
+      const name = document.getElementById('packageName').value;
+      const points = document.getElementById('packagePoints').value;
+      const price = document.getElementById('packagePrice').value;
+      if (!name || !points || !price) return showToast('请填写必填项', 'error');
+      const payload = {
+        name, points: Number(points), price: Number(price),
+        bonus_points: Number(document.getElementById('packageBonus').value),
+        sort_order: Number(document.getElementById('packageSort').value),
+        status: Number(document.getElementById('packageStatus').value),
+        is_hot: Number(document.getElementById('packageHot').value),
+      };
+      try {
+        if (editingPackageId) {
+          await fetch(API + '/admin/packages/' + editingPackageId, { method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify(payload) });
+        } else {
+          await fetch(API + '/admin/packages', { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify(payload) });
+        }
+        closePackageModal(); loadPackages(); showToast(editingPackageId ? '修改成功' : '添加成功', 'success');
+      } catch (e) { showToast('操作失败', 'error'); }
+    }
+
+    async function deletePackage(id, name) {
+      if (!confirm('确定删除套餐「' + name + '」？')) return;
+      try {
+        await fetch(API + '/admin/packages/' + id, { method: 'DELETE', headers: authHeaders() });
+        loadPackages(); showToast('删除成功', 'success');
+      } catch (e) { showToast('删除失败', 'error'); }
+    }
+
+    // ===== Payment Settings =====
+    async function loadPaymentSettings() {
+      try {
+        const res = await fetch(API + '/admin/settings', { headers: authHeaders() });
+        const { data } = await res.json();
+        const s = {};
+        data.forEach(item => s[item.key] = item.value);
+        document.getElementById('paypalEnabled').value = s.paypal_enabled || 'false';
+        document.getElementById('paypalMode').value = s.paypal_mode || 'sandbox';
+        document.getElementById('paypalClientId').value = s.paypal_client_id || '';
+        document.getElementById('paypalClientSecret').value = s.paypal_client_secret || '';
+      } catch (e) { console.error(e); }
+    }
+
+    async function savePaymentSettings() {
+      const settings = {
+        paypal_enabled: document.getElementById('paypalEnabled').value,
+        paypal_mode: document.getElementById('paypalMode').value,
+        paypal_client_id: document.getElementById('paypalClientId').value,
+        paypal_client_secret: document.getElementById('paypalClientSecret').value,
+      };
+      try {
+        const res = await fetch(API + '/admin/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ settings }) });
+        const data = await res.json();
+        if (data.success) showToast('支付设置已保存', 'success');
+        else showToast(data.message || '保存失败', 'error');
+      } catch (e) { showToast('保存失败', 'error'); }
+    }
+
+    // ===== Points Settings =====
+    async function loadPointsSettings() {
+      try {
+        const res = await fetch(API + '/admin/settings', { headers: authHeaders() });
+        const { data } = await res.json();
+        const s = {};
+        data.forEach(item => s[item.key] = item.value);
+        document.getElementById('registerBonusPoints').value = s.register_bonus_points || '50';
+        document.getElementById('dailySigninPoints').value = s.daily_signin_points || '5';
+        document.getElementById('pointsPerEpisode').value = s.points_per_episode || '10';
+        document.getElementById('freeEpisodeCount').value = s.free_episode_count || '3';
+      } catch (e) { console.error(e); }
+    }
+
+    async function savePointsSettings() {
+      const settings = {
+        register_bonus_points: document.getElementById('registerBonusPoints').value,
+        daily_signin_points: document.getElementById('dailySigninPoints').value,
+        points_per_episode: document.getElementById('pointsPerEpisode').value,
+        free_episode_count: document.getElementById('freeEpisodeCount').value,
+      };
+      try {
+        const res = await fetch(API + '/admin/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ settings }) });
+        const data = await res.json();
+        if (data.success) showToast('积分设置已保存', 'success');
+        else showToast(data.message || '保存失败', 'error');
+      } catch (e) { showToast('保存失败', 'error'); }
+    }
+
+    async function saveSigninSettings() {
+      const settings = {
+        signin_streak_rewards: document.getElementById('signinStreakRewards').value,
+      };
+      try {
+        const res = await fetch(API + '/admin/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ settings }) });
+        const data = await res.json();
+        if (data.success) showToast('签到设置已保存', 'success');
+        else showToast(data.message || '保存失败', 'error');
+      } catch (e) { showToast('保存失败', 'error'); }
+    }
+
+    async function saveShareSettings() {
+      const settings = {
+        share_reward_points: document.getElementById('shareRewardPoints').value,
+        share_daily_limit: document.getElementById('shareDailyLimit').value,
+        invite_reward_points: document.getElementById('inviteRewardPoints').value,
+        invitee_reward_points: document.getElementById('inviteeRewardPoints').value,
+      };
+      try {
+        const res = await fetch(API + '/admin/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ settings }) });
+        const data = await res.json();
+        if (data.success) showToast('分享设置已保存', 'success');
+        else showToast(data.message || '保存失败', 'error');
+      } catch (e) { showToast('保存失败', 'error'); }
+    }
+
+    // ===== VIP Plans =====
+    async function loadVipPlans() {
+      try {
+        const res = await fetch(API + '/admin/vip-plans', { headers: authHeaders() });
+        const data = await res.json();
+        const container = document.getElementById('vipPlansList');
+        if (!data.data || data.data.length === 0) {
+          container.innerHTML = '<div class="empty-state"><div class="icon">&#x1F451;</div><p>暂无VIP套餐</p></div>';
+          return;
+        }
+        container.innerHTML = '<table><thead><tr><th>名称</th><th>天数</th><th>价格</th><th>原价</th><th>免费集</th><th>积分加成</th><th>排序</th><th>热门</th><th>状态</th><th>操作</th></tr></thead><tbody>'
+          + data.data.map(p => '<tr>'
+            + '<td>' + esc(p.name) + '</td>'
+            + '<td>' + p.duration_days + '天</td>'
+            + '<td style="color:#e74c3c;font-weight:700;">¥' + Number(p.price).toFixed(2) + '</td>'
+            + '<td>' + (p.original_price ? '¥' + Number(p.original_price).toFixed(2) : '-') + '</td>'
+            + '<td>' + (p.free_episodes === 0 ? '全部免费' : p.free_episodes + '集/日') + '</td>'
+            + '<td>' + (p.points_bonus > 0 ? '+' + p.points_bonus + '%' : '-') + '</td>'
+            + '<td>' + p.sort_order + '</td>'
+            + '<td>' + (p.is_hot ? '<span style="color:#ff4757;font-weight:600;">热门</span>' : '-') + '</td>'
+            + '<td>' + (p.status === 1 ? '<span style="color:#2e7d32;">启用</span>' : '<span style="color:#999;">停用</span>') + '</td>'
+            + '<td><button class="btn btn-sm" onclick="editVipPlan(' + p.id + ')">编辑</button> <button class="btn btn-sm btn-danger" onclick="deleteVipPlan(' + p.id + ')">删除</button></td>'
+            + '</tr>').join('')
+          + '</tbody></table>';
+      } catch (e) { showToast('加载失败', 'error'); }
+    }
+
+    function showVipPlanModal(plan) {
+      document.getElementById('vipPlanModalTitle').textContent = plan ? '编辑VIP套餐' : '添加VIP套餐';
+      document.getElementById('vipPlanId').value = plan ? plan.id : '';
+      document.getElementById('vipPlanName').value = plan ? plan.name : '';
+      document.getElementById('vipPlanDays').value = plan ? plan.duration_days : '';
+      document.getElementById('vipPlanPrice').value = plan ? plan.price : '';
+      document.getElementById('vipPlanOriginalPrice').value = plan && plan.original_price ? plan.original_price : '';
+      document.getElementById('vipPlanFreeEp').value = plan ? plan.free_episodes : 0;
+      document.getElementById('vipPlanPointsBonus').value = plan ? plan.points_bonus : 0;
+      document.getElementById('vipPlanFeatures').value = plan && plan.features ? plan.features : '';
+      document.getElementById('vipPlanSort').value = plan ? plan.sort_order : 0;
+      document.getElementById('vipPlanHot').value = plan && plan.is_hot ? 1 : 0;
+      document.getElementById('vipPlanModal').classList.add('active');
+    }
+
+    async function saveVipPlan() {
+      const id = document.getElementById('vipPlanId').value;
+      const plan = {
+        name: document.getElementById('vipPlanName').value,
+        duration_days: parseInt(document.getElementById('vipPlanDays').value) || 0,
+        price: parseFloat(document.getElementById('vipPlanPrice').value) || 0,
+        original_price: document.getElementById('vipPlanOriginalPrice').value ? parseFloat(document.getElementById('vipPlanOriginalPrice').value) : null,
+        free_episodes: parseInt(document.getElementById('vipPlanFreeEp').value) || 0,
+        points_bonus: parseInt(document.getElementById('vipPlanPointsBonus').value) || 0,
+        features: document.getElementById('vipPlanFeatures').value || null,
+        sort_order: parseInt(document.getElementById('vipPlanSort').value) || 0,
+        is_hot: parseInt(document.getElementById('vipPlanHot').value) || 0,
+      };
+      if (!plan.name || !plan.duration_days || !plan.price) { showToast('请填写必要字段', 'error'); return; }
+      try {
+        const url = id ? API + '/admin/vip-plans/' + id : API + '/admin/vip-plans';
+        const method = id ? 'PUT' : 'POST';
+        const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify(plan) });
+        const data = await res.json();
+        if (data.success) { showToast('保存成功', 'success'); closeModal('vipPlanModal'); loadVipPlans(); }
+        else showToast(data.message || '保存失败', 'error');
+      } catch (e) { showToast('保存失败', 'error'); }
+    }
+
+    async function editVipPlan(id) {
+      try {
+        const res = await fetch(API + '/admin/vip-plans', { headers: authHeaders() });
+        const data = await res.json();
+        const plan = data.data.find((p: any) => p.id === id);
+        if (plan) showVipPlanModal(plan);
+      } catch (e) { showToast('加载失败', 'error'); }
+    }
+
+    async function deleteVipPlan(id) {
+      if (!confirm('确定删除此套餐？')) return;
+      try {
+        const res = await fetch(API + '/admin/vip-plans/' + id, { method: 'DELETE', headers: authHeaders() });
+        const data = await res.json();
+        if (data.success) { showToast('已删除', 'success'); loadVipPlans(); }
+        else showToast(data.message || '删除失败', 'error');
+      } catch (e) { showToast('删除失败', 'error'); }
+    }
+
+    // ===== Load extra settings on init =====
+    async function loadExtraSettings() {
+      try {
+        const res = await fetch(API + '/admin/settings', { headers: authHeaders() });
+        const data = await res.json();
+        const s = data.data || {};
+        if (s.signin_streak_rewards) document.getElementById('signinStreakRewards').value = s.signin_streak_rewards;
+        if (s.share_reward_points !== undefined) document.getElementById('shareRewardPoints').value = s.share_reward_points;
+        if (s.share_daily_limit !== undefined) document.getElementById('shareDailyLimit').value = s.share_daily_limit;
+        if (s.invite_reward_points !== undefined) document.getElementById('inviteRewardPoints').value = s.invite_reward_points;
+        if (s.invitee_reward_points !== undefined) document.getElementById('inviteeRewardPoints').value = s.invitee_reward_points;
+      } catch (e) { /* ignore */ }
+    }
+
+    // ===== Init =====
+    document.getElementById('loginPassword').addEventListener('keydown', (e) => { if (e.key === 'Enter') login(); });
+  </script>
+</body>
+</html>

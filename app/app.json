@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "DramaFlix",
+    "slug": "dramaflix",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1C1B1F"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.dramaflix.app",
+      "buildNumber": "1"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#1C1B1F",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "package": "com.dramaflix.app",
+      "versionCode": 1
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-screen-orientation",
+      "expo-secure-store"
+    ],
+    "scheme": "dramaflix",
+    "extra": {
+      "apiBaseUrl": "http://localhost:3001"
+    }
+  }
+}
