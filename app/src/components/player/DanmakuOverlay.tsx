@@ -23,20 +23,26 @@ const TRACK_GAP = 4;
 const TOP_TRACKS = 8;
 const CENTER_TRACKS = 3;
 const SPEED_MS = 8000; // time for danmaku to cross screen
+const COOLDOWN_MS = SPEED_MS + 2000; // after a danmaku finishes, wait this long before showing it again
 
 const DanmakuOverlay: React.FC<Props> = memo(({ danmakuList, currentTime, enabled, opacity }) => {
   const activeRef = useRef<DanmakuItem[]>([]);
   const [visibleItems, setVisibleItems] = React.useState<DanmakuItem[]>([]);
-  const renderedIds = useRef<Set<string>>(new Set());
+  // Track when each danmaku was last shown to implement cooldown
+  const lastShownTime = useRef<Map<string, number>>(new Map());
   const cleanupTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Filter danmaku that should appear at current time (within 1s window)
   const getNewDanmaku = useCallback((time: number): DanmakuItem[] => {
+    const now = Date.now();
     const newItems: DanmakuItem[] = [];
     for (const d of danmakuList) {
-      if (renderedIds.current.has(String(d.id))) continue;
+      const dId = String(d.id);
+      // Check cooldown: if this danmaku was recently shown, skip
+      const lastShown = lastShownTime.current.get(dId) || 0;
+      if (now - lastShown < COOLDOWN_MS) continue;
       if (Math.abs(d.time - time) < 1.0) {
-        renderedIds.current.add(String(d.id));
+        lastShownTime.current.set(dId, now);
         newItems.push({
           ...d,
           _animX: new Animated.Value(W),
@@ -58,7 +64,7 @@ const DanmakuOverlay: React.FC<Props> = memo(({ danmakuList, currentTime, enable
       // Remove from active list after animation completes
       activeRef.current = activeRef.current.filter(a => a._id !== item._id);
       setVisibleItems([...activeRef.current]);
-      // Do NOT delete from renderedIds — danmaku should only appear once
+      // Cooldown is handled by lastShownTime map — danmaku can reappear after COOLDOWN_MS
     });
   }, []);
 
@@ -68,7 +74,6 @@ const DanmakuOverlay: React.FC<Props> = memo(({ danmakuList, currentTime, enable
       // When disabled, clear everything
       activeRef.current = [];
       setVisibleItems([]);
-      // Note: don't clear renderedIds so re-enabling won't replay old ones
       return;
     }
 
@@ -96,9 +101,9 @@ const DanmakuOverlay: React.FC<Props> = memo(({ danmakuList, currentTime, enable
     };
   }, [currentTime, enabled, getNewDanmaku, startAnimation]);
 
-  // Reset when episode changes (clear rendered IDs)
+  // Reset when episode changes (clear cooldown and active items)
   useEffect(() => {
-    renderedIds.current.clear();
+    lastShownTime.current.clear();
     activeRef.current = [];
     setVisibleItems([]);
   }, [danmakuList.length]);

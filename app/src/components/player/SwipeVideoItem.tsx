@@ -113,10 +113,20 @@ const SwipeVideoItem: React.FC<Props> = memo(({
   // Play/pause based on isActive
   useEffect(() => {
     if (isActive) {
-      const t = setTimeout(() => setIsPlaying(true), 150);
+      // Reset state when becoming active (e.g. swiping back)
+      setCurrentTime(0);
+      setDuration(0);
+      setIsLoading(true);
+      setHasError(false);
+      // Small delay to allow Video component to remount/reload
+      const t = setTimeout(() => setIsPlaying(true), 300);
       return () => clearTimeout(t);
     } else {
       setIsPlaying(false);
+      // Seek to beginning when leaving to ensure clean state
+      if (videoRef.current) {
+        videoRef.current.seek(0);
+      }
     }
   }, [isActive]);
 

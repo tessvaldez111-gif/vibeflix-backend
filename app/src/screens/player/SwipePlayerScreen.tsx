@@ -397,10 +397,9 @@ export const SwipePlayerScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
         viewabilityConfig={viewabilityConfig}
         onViewableItemsChanged={onViewableItemsChanged}
-        windowSize={2}
+        windowSize={3}
         maxToRenderPerBatch={1}
         initialNumToRender={1}
-        removeClippedSubviews={Platform.OS === 'android'}
         onEndReached={() => {
           if (episodes.length - currentIndex <= 3) loadNextDrama();
         }}
