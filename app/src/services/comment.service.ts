@@ -49,7 +49,8 @@ export const adRewardService = {
 
   /** Get today's ad reward count */
   getTodayCount: async (): Promise<{ count: number; maxDaily: number }> => {
-    const res = await apiClient.get<{ data: { count: number; maxDaily: number }>('/api/ad-reward/today');
+    type TodayResponse = { count: number; maxDaily: number };
+    const res = await apiClient.get<{ data: TodayResponse }>('/api/ad-reward/today');
     return res.data.data;
   },
 };
