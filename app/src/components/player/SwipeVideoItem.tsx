@@ -80,6 +80,8 @@ const SwipeVideoItem: React.FC<Props> = memo(({
   const [danmakuInput, setDanmakuInput] = useState('');
   const [showDanmakuInput, setShowDanmakuInput] = useState(false);
   const [wasPlayingBefore, setWasPlayingBefore] = useState(true);
+  // Force remount key for Video component when re-activating
+  const [videoKey, setVideoKey] = useState(0);
 
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -110,23 +112,20 @@ const SwipeVideoItem: React.FC<Props> = memo(({
     return () => { if (controlsTimer.current) clearTimeout(controlsTimer.current); };
   }, [isPlaying, isLoading, hasError]);
 
-  // Play/pause based on isActive
+  // Play/pause based on isActive - force remount Video when re-activating
   useEffect(() => {
     if (isActive) {
-      // Reset state when becoming active (e.g. swiping back)
+      // Force Video component to fully remount by changing key
+      // This fixes the audio glitch when swiping back to episode 1
+      setVideoKey(prev => prev + 1);
       setCurrentTime(0);
       setDuration(0);
       setIsLoading(true);
       setHasError(false);
-      // Small delay to allow Video component to remount/reload
-      const t = setTimeout(() => setIsPlaying(true), 300);
+      const t = setTimeout(() => setIsPlaying(true), 500);
       return () => clearTimeout(t);
     } else {
       setIsPlaying(false);
-      // Seek to beginning when leaving to ensure clean state
-      if (videoRef.current) {
-        videoRef.current.seek(0);
-      }
     }
   }, [isActive]);
 
@@ -271,6 +270,7 @@ const SwipeVideoItem: React.FC<Props> = memo(({
       <View style={styles.videoWrapper}>
         {videoUri ? (
           <Video
+            key={videoKey}
             ref={videoRef}
             source={{ uri: videoUri }}
             style={styles.video}

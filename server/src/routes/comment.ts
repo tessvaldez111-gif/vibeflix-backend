@@ -279,7 +279,7 @@ router.post('/ad-reward/claim', requireAuth, async (req: AuthRequest, res: Respo
         [req.user.id, pointsPerAd]
       );
       await conn.query(
-        `INSERT INTO points_log (user_id, type, points, description)
+        `INSERT INTO points_log (user_id, type, amount, description)
          VALUES (?, 'reward', ?, '观看广告奖励')`,
         [req.user.id, pointsPerAd]
       );
