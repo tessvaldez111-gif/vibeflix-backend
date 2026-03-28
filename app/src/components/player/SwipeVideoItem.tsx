@@ -11,6 +11,7 @@ import { adRewardService } from '../../services/comment.service';
 import { formatDuration, formatNumber } from '../../utils/format';
 import { COLORS } from '../../utils/constants';
 import { usePlayerStore, PLAYBACK_SPEEDS, type PlaybackSpeed } from '../../stores/playerStore';
+import { useWalletStore } from '../../stores/walletStore';
 import DanmakuOverlay from './DanmakuOverlay';
 import SpeedSelector from './SpeedSelector';
 import AdRewardModal from './AdRewardModal';
@@ -68,6 +69,7 @@ const SwipeVideoItem: React.FC<Props> = memo(({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [hasError, setHasError] = useState(false);
+  // Controls visible on tap, but right-side buttons always visible
   const [controlsVisible, setControlsVisible] = useState(true);
   const [isSeeking, setIsSeeking] = useState(false);
   const [seekPosition, setSeekPosition] = useState(0);
@@ -77,8 +79,11 @@ const SwipeVideoItem: React.FC<Props> = memo(({
   const [showAdReward, setShowAdReward] = useState(false);
   const [danmakuInput, setDanmakuInput] = useState('');
   const [showDanmakuInput, setShowDanmakuInput] = useState(false);
+  const [wasPlayingBefore, setWasPlayingBefore] = useState(true);
 
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const loadPoints = useWalletStore(state => state.loadPoints);
 
   const {
     playbackSpeed,
@@ -95,12 +100,11 @@ const SwipeVideoItem: React.FC<Props> = memo(({
   const progressPercent = duration > 0 ? ((isSeeking ? seekPosition : currentTime) / duration) * 100 : 0;
   const displayTime = isSeeking ? seekPosition : currentTime;
 
-  // Auto-hide controls
+  // Auto-hide only the top title bar after 4s
   useEffect(() => {
     if (isPlaying && !isLoading && !hasError) {
       controlsTimer.current = setTimeout(() => {
         setControlsVisible(false);
-        setShowDanmakuInput(false);
       }, 4000);
     }
     return () => { if (controlsTimer.current) clearTimeout(controlsTimer.current); };
@@ -152,6 +156,7 @@ const SwipeVideoItem: React.FC<Props> = memo(({
   const showControlsFn = useCallback(() => {
     setControlsVisible(true);
     if (controlsTimer.current) clearTimeout(controlsTimer.current);
+    // Only auto-hide top bar, bottom bar & right actions stay
     if (isPlaying && !isLoading && !hasError) {
       controlsTimer.current = setTimeout(() => setControlsVisible(false), 4000);
     }
@@ -357,8 +362,8 @@ const SwipeVideoItem: React.FC<Props> = memo(({
         </TouchableOpacity>
       )}
 
-      {/* ===== Right side actions ===== */}
-      {controlsVisible && !hasError && (
+      {/* ===== Right side actions (always visible) ===== */}
+      {!hasError && (
         <View style={styles.rightActions}>
           <View style={styles.dramaCover}>
             <Text style={styles.dramaCoverEmoji}>{'\u{1F3AC}'}</Text>
@@ -368,14 +373,20 @@ const SwipeVideoItem: React.FC<Props> = memo(({
           <View style={styles.actionSpacing} />
           <ActionIcon icon={isLiked ? '\u2764' : '\u2661'} label={formatNumber(likeCount)} active={isLiked} onPress={() => onToggleLike(data.drama_id)} />
           <ActionIcon icon={isFavorited ? '\u2605' : '\u2606'} label={formatNumber(collectCount)} active={isFavorited} onPress={() => onToggleFavorite(data.drama_id)} />
-          <ActionIcon icon={danmakuEnabled ? '\u{1F4AC}' : '\u{1F4AC}'} label={danmakuEnabled ? 'Danmaku' : 'Off'} active={danmakuEnabled} onPress={() => setDanmakuEnabled(!danmakuEnabled)} />
+          <ActionIcon icon={danmakuEnabled ? '\u{1F4AC}' : '\u{1F4AC}'} label={danmakuEnabled ? 'Danmaku' : 'Off'} active={danmakuEnabled} onPress={() => {
+            setDanmakuEnabled(!danmakuEnabled);
+            if (!danmakuEnabled) {
+              // When enabling danmaku, show input
+              setShowDanmakuInput(true);
+            }
+          }} />
           <ActionIcon icon={'\u21AA'} label={formatNumber(shareCount)} active={false} onPress={handleShare} />
           <ActionIcon icon={'\u{1F4F9}'} label="Episodes" active={false} onPress={() => setShowEpisodes(true)} />
         </View>
       )}
 
-      {/* ===== Bottom bar ===== */}
-      {controlsVisible && !hasError && (
+      {/* ===== Bottom bar (always visible) ===== */}
+      {!hasError && (
         <View style={styles.bottomBar}>
           {/* Progress bar */}
           <View style={styles.progressTrack}>
@@ -415,8 +426,12 @@ const SwipeVideoItem: React.FC<Props> = memo(({
                 <Text style={[styles.ctrlText, styles.adBtnText]}>{'\u{1F680}'} Ad</Text>
               </TouchableOpacity>
 
-              {/* Comment button */}
-              <TouchableOpacity style={styles.ctrlBtn} onPress={() => setShowComments(true)} activeOpacity={0.7}>
+              {/* Comment button - pause video when opening */}
+              <TouchableOpacity style={styles.ctrlBtn} onPress={() => {
+                setWasPlayingBefore(isPlaying);
+                setIsPlaying(false);
+                setShowComments(true);
+              }} activeOpacity={0.7}>
                 <Text style={styles.ctrlText}>{formatNumber(commentCount)} {'\u{1F4AC}'}</Text>
               </TouchableOpacity>
             </View>
@@ -471,6 +486,8 @@ const SwipeVideoItem: React.FC<Props> = memo(({
           try {
             const result = await adRewardService.claimReward(data.drama_id, data.id);
             Alert.alert('Reward Claimed!', `+${result.points} points added! Balance: ${result.balance}`);
+            // Refresh wallet to update points balance
+            loadPoints();
           } catch (err: any) {
             Alert.alert('Error', err.response?.data?.message || 'Failed to claim reward');
           }
@@ -483,7 +500,11 @@ const SwipeVideoItem: React.FC<Props> = memo(({
         visible={showComments}
         dramaId={data.drama_id}
         episodeId={data.id}
-        onClose={() => setShowComments(false)}
+        onClose={() => {
+          setShowComments(false);
+          // Resume playback after closing comments
+          setIsPlaying(wasPlayingBefore);
+        }}
       />
 
       {/* Episode selector */}
