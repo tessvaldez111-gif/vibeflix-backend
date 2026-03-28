@@ -22,7 +22,8 @@
         "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "package": "com.dramaflix.app",
-      "versionCode": 1
+      "versionCode": 1,
+      "usesCleartextTraffic": true
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -30,11 +31,16 @@
     },
     "plugins": [
       "expo-screen-orientation",
-      "expo-secure-store"
+      "expo-secure-store",
+      "./plugins/withNetworkSecurityConfig"
     ],
     "scheme": "dramaflix",
     "extra": {
-      "apiBaseUrl": "http://localhost:3001"
-    }
+      "apiBaseUrl": "http://43.159.62.11",
+      "eas": {
+        "projectId": "fb1a163c-5a7e-4550-8bc6-04cd63290a85"
+      }
+    },
+    "owner": "lbx1123"
   }
 }

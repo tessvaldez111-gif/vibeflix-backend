@@ -18,13 +18,19 @@ export const DramaCard: React.FC<Props> = ({ drama }) => {
   const coverUrl = getMediaUrl(drama.cover_image);
 
   const onPress = () => {
-    navigation.navigate('DramaDetail' as never, { dramaId: drama.id } as never);
+    // Short press -> open TikTok-style swipe player
+    (navigation.navigate as any)('SwipePlayer', { dramaId: drama.id });
+  };
+
+  const onLongPress = () => {
+    // Long press -> open drama detail page
+    (navigation.navigate as any)('DramaDetail', { dramaId: drama.id });
   };
 
   const genreColor = GENRE_COLORS[drama.genre.toLowerCase()] || COLORS.primary;
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
+    <TouchableOpacity style={styles.card} onPress={onPress} onLongPress={onLongPress} activeOpacity={0.8}>
       <Image
         source={{ uri: coverUrl }}
         style={styles.cover}

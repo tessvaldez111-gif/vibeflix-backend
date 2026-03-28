@@ -90,7 +90,7 @@ export const HistoryScreen: React.FC = () => {
             <View style={styles.progressBg}>
               <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
             </View>
-            <Text style={styles.progressText}>
+            <Text style={[styles.progressText, styles.progressTextMargin]}>
               {formatDuration(item.progress)} / {formatDuration(item.duration)}
             </Text>
           </View>
@@ -181,8 +181,10 @@ const styles = StyleSheet.create({
   progressRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
     marginTop: 6,
+  },
+  progressTextMargin: {
+    marginLeft: 8,
   },
   progressBg: {
     flex: 1,

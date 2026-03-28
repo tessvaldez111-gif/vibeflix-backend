@@ -10,11 +10,9 @@ export const setAuthClearHandler = (handler: () => void) => {
 };
 
 // ===== Config =====
-// In development: use the IP address of your dev machine
+// In development: use the deployed server API
 // In production: use your deployed backend URL
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || (__DEV__
-  ? 'http://localhost:3001'
-  : 'https://your-domain.com'); // TODO: change to production URL
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://43.159.62.11';
 
 const TOKEN_KEY = 'auth_token';
 
@@ -80,8 +78,13 @@ export const clearToken = async (): Promise<void> => {
 export const getMediaUrl = (path: string): string => {
   if (!path) return '';
   if (path.startsWith('http')) return path;
-  const cleanPath = path.replace(/^\//, ''); // remove leading slash
-  return `${BASE_URL}/${cleanPath}`;
+  // Nginx serves /uploads/ and COS URLs are absolute
+  // Use server base for relative paths like /uploads/covers/xxx.jpg
+  if (path.startsWith('/')) {
+    // Path already has leading slash — prepend base without double slash
+    return `${BASE_URL}${path}`;
+  }
+  return `${BASE_URL}/${path}`;
 };
 
 export default apiClient;

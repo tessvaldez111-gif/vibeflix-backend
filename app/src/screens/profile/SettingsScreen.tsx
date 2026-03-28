@@ -166,7 +166,8 @@ const styles = StyleSheet.create({
   },
   infoLabel: { color: COLORS.onSurfaceVariant, fontSize: 15 },
   infoValue: { color: COLORS.onSurface, fontSize: 15, fontWeight: '500' },
-  langValueRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  langValueRow: { flexDirection: 'row', alignItems: 'center' },
+  langChevron: { marginLeft: 6 },
   langMenu: {
     backgroundColor: COLORS.surface,
     borderRadius: 12,

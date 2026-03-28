@@ -101,7 +101,7 @@ export const ExploreTab: React.FC = () => {
           {genres.map((genre) => (
             <TouchableOpacity
               key={genre}
-              style={[styles.genreChip, selectedGenre === genre && styles.genreChipActive]}
+              style={[styles.genreChip, styles.genreChipMargin, selectedGenre === genre && styles.genreChipActive]}
               onPress={() => onGenrePress(genre)}
             >
               <Text style={styles.genreChipText}>{genre}</Text>
@@ -162,10 +162,13 @@ const styles = StyleSheet.create({
   },
   genresRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     paddingHorizontal: SPACING.md,
     paddingBottom: SPACING.md,
-    gap: SPACING.sm,
-    flexWrap: 'wrap',
+  },
+  genreChipMargin: {
+    marginRight: SPACING.sm,
+    marginBottom: SPACING.sm,
   },
   genreChip: {
     paddingHorizontal: 14,

@@ -21,6 +21,7 @@ import { LoginScreen } from './screens/auth/LoginScreen';
 import { RegisterScreen } from './screens/auth/RegisterScreen';
 import { DramaDetailScreen } from './screens/drama/DramaDetailScreen';
 import { PlayerScreen } from './screens/drama/PlayerScreen';
+import { SwipePlayerScreen } from './screens/player/SwipePlayerScreen';
 import { HistoryScreen } from './screens/profile/HistoryScreen';
 import { FavoritesScreen } from './screens/profile/FavoritesScreen';
 import { SettingsScreen } from './screens/profile/SettingsScreen';
@@ -112,6 +113,7 @@ export type RootStackParamList = {
   Register: undefined;
   DramaDetail: { dramaId: number };
   Player: { dramaId: number; episodeId: number; videoPath: string };
+  SwipePlayer: { dramaId: number; startEpisodeId?: number };
   WatchHistory: undefined;
   Favorites: undefined;
   Settings: undefined;
@@ -150,6 +152,14 @@ export default function App() {
           <>
             <Stack.Screen name="MainTabs" component={TabNavigator} />
             <Stack.Screen name="DramaDetail" component={DramaDetailScreen} />
+            <Stack.Screen
+              name="SwipePlayer"
+              component={SwipePlayerScreen}
+              options={{
+                animation: 'fade',
+                orientation: 'portrait',
+              }}
+            />
             <Stack.Screen
               name="Player"
               component={PlayerScreen}

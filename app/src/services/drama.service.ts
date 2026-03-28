@@ -8,6 +8,7 @@ interface DramaQueryParams {
   page?: number;
   pageSize?: number;
   status?: string;
+  sortBy?: 'latest' | 'popular' | 'rating';
 }
 
 export const dramaService = {
@@ -19,6 +20,7 @@ export const dramaService = {
     if (params?.page) search.set('page', String(params.page));
     if (params?.pageSize) search.set('pageSize', String(params.pageSize));
     if (params?.status) search.set('status', params.status);
+    if (params?.sortBy) search.set('sortBy', params.sortBy);
     const res = await apiClient.get<{ data: PaginatedResponse<Drama> }>(`/api/dramas?${search.toString()}`);
     return res.data.data;
   },
@@ -38,6 +40,12 @@ export const dramaService = {
   /** Get drama list (shortcut for HomeScreen) */
   getRecentDramas: async (limit = 10): Promise<Drama[]> => {
     const res = await apiClient.get<{ data: PaginatedResponse<Drama> }>(`/api/dramas?pageSize=${limit}`);
+    return res.data.data.list;
+  },
+
+  /** Get popular/hot dramas sorted by view count */
+  getPopularDramas: async (limit = 10): Promise<Drama[]> => {
+    const res = await apiClient.get<{ data: PaginatedResponse<Drama> }>(`/api/dramas?sortBy=popular&pageSize=${limit}`);
     return res.data.data.list;
   },
 

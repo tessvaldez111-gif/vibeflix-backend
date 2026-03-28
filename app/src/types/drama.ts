@@ -51,3 +51,18 @@ export interface WatchHistoryItem {
   episode_number: number;
   updated_at: string;
 }
+
+export interface SwipeEpisodeData {
+  id: number;
+  drama_id: number;
+  episode_number: number;
+  title: string;
+  video_path: string;
+  duration: number;
+  is_free: number;
+  points_cost: number;
+  drama_title: string;
+  drama_genre: string;
+  drama_status: string;
+  episode_count: number;
+}

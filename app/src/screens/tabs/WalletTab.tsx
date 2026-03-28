@@ -246,13 +246,14 @@ const styles = StyleSheet.create({
   modalPoints: { color: COLORS.primaryLight, fontSize: 24, fontWeight: 'bold', marginVertical: 4 },
   modalPrice: { color: COLORS.gold, fontSize: 20, fontWeight: 'bold', marginBottom: SPACING.md },
   modalHint: { color: COLORS.onSurfaceVariant, fontSize: 13, textAlign: 'center', marginBottom: SPACING.lg, lineHeight: 18 },
-  modalActions: { flexDirection: 'row', gap: SPACING.md, width: '100%' },
+  modalActions: { flexDirection: 'row', width: '100%' },
   modalCancelBtn: {
     flex: 1,
     padding: SPACING.sm,
     borderRadius: 12,
     backgroundColor: COLORS.secondaryContainer,
     alignItems: 'center',
+    marginRight: SPACING.md,
   },
   modalCancelText: { color: COLORS.onSurface, fontSize: 15, fontWeight: '600' },
   modalConfirmBtn: {
