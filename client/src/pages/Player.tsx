@@ -139,6 +139,24 @@ export default function Player() {
     }
   }, [currentEpisode]);
 
+  // Prefetch next episode video
+  useEffect(() => {
+    if (!drama || !currentEpisode) return;
+    const idx = drama.episodes.findIndex((e) => e.id === currentEpisode.id);
+    if (idx >= 0 && idx < drama.episodes.length - 1) {
+      const nextEp = drama.episodes[idx + 1];
+      const nextUrl = api.getVideoUrl(nextEp.video_path);
+      if (nextUrl) {
+        const link = document.createElement('link');
+        link.rel = 'prefetch';
+        link.as = 'video';
+        link.href = nextUrl;
+        document.head.appendChild(link);
+        return () => { document.head.removeChild(link); };
+      }
+    }
+  }, [drama, currentEpisode]);
+
   // ===== Payment Logic =====
 
   const isEpisodeFree = useCallback((ep: Episode): boolean => {
@@ -280,6 +298,7 @@ export default function Player() {
           onClose={() => setShowShare(false)}
           dramaId={dramaId}
           dramaTitle={drama?.title}
+          dramaCover={drama?.cover_image}
           shareCode={shareCode}
         />
       )}
@@ -318,6 +337,8 @@ export default function Player() {
                 ref={videoRef}
                 controls
                 autoPlay
+                preload="auto"
+                playsInline
                 className="video-player"
                 onEnded={playNext}
               >

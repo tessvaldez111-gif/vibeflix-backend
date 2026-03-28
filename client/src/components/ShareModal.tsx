@@ -6,10 +6,11 @@ interface ShareModalProps {
   onClose: () => void;
   dramaId?: number | null;
   dramaTitle?: string;
+  dramaCover?: string;
   shareCode?: string;
 }
 
-export default function ShareModal({ open, onClose, dramaId, dramaTitle, shareCode }: ShareModalProps) {
+export default function ShareModal({ open, onClose, dramaId, dramaTitle, dramaCover, shareCode }: ShareModalProps) {
   const [copied, setCopied] = useState(false);
   const [shareType, setShareType] = useState<'drama' | 'invite'>(dramaId ? 'drama' : 'invite');
   const [shareReward, setShareReward] = useState<string | null>(null);
@@ -17,10 +18,12 @@ export default function ShareModal({ open, onClose, dramaId, dramaTitle, shareCo
   const baseUrl = window.location.origin;
   const dramaUrl = dramaId ? `${baseUrl}/drama/${dramaId}` : '';
   const inviteUrl = shareCode ? `${baseUrl}/?invite=${shareCode}` : '';
-
   const currentUrl = shareType === 'drama' ? dramaUrl : inviteUrl;
+  const encodedUrl = encodeURIComponent(currentUrl);
+  const shareText = dramaTitle ? `Check out "${dramaTitle}" - a great drama!` : 'Join me on this awesome drama platform!';
+  const encodedText = encodeURIComponent(shareText);
 
-  // 上报分享事件到后端（发放积分奖励）
+  // Report share event for points
   const reportShare = async () => {
     try {
       const result = await shareApi.share(
@@ -28,11 +31,10 @@ export default function ShareModal({ open, onClose, dramaId, dramaTitle, shareCo
         shareType
       );
       if (result.balance !== undefined) {
-        setShareReward(`分享成功，+积分！今日剩余 ${result.remaining} 次`);
+        setShareReward(`+Points! ${result.remaining} shares left today`);
       }
     } catch (e: any) {
-      // 分享上限等情况不阻断用户操作
-      if (e.message?.includes('上限')) {
+      if (e.message?.includes('limit') || e.message?.includes('上限')) {
         setShareReward(e.message);
       }
     }
@@ -43,7 +45,6 @@ export default function ShareModal({ open, onClose, dramaId, dramaTitle, shareCo
       await navigator.clipboard.writeText(currentUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-      // 上报分享
       reportShare();
     } catch {
       const input = document.createElement('input');
@@ -58,9 +59,18 @@ export default function ShareModal({ open, onClose, dramaId, dramaTitle, shareCo
     }
   };
 
-  const handleShareWechat = () => {
-    handleCopy();
-    alert('链接已复制，请打开微信粘贴发送给好友');
+  // Share platform URLs
+  const shareLinks = {
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
+    twitter: `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`,
+    whatsapp: `https://wa.me/?text=${encodedText}%20${encodedUrl}`,
+    telegram: `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`,
+    line: `https://social-plugins.line.me/lineit/share?url=${encodedUrl}&text=${encodedText}`,
+  };
+
+  const handleShareClick = (platform: keyof typeof shareLinks) => {
+    window.open(shareLinks[platform], '_blank', 'width=600,height=400');
+    reportShare();
   };
 
   if (!open) return null;
@@ -69,44 +79,45 @@ export default function ShareModal({ open, onClose, dramaId, dramaTitle, shareCo
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content share-modal" onClick={e => e.stopPropagation()}>
         <button className="modal-close" onClick={onClose}>&times;</button>
-        
-        <h2 className="share-title">分享给好友</h2>
 
-        {/* 分享类型切换 */}
+        <h2 className="share-title">Share</h2>
+
+        {/* Share type toggle */}
         {dramaId && (
           <div className="share-tabs">
             <button
               className={`share-tab ${shareType === 'drama' ? 'active' : ''}`}
               onClick={() => setShareType('drama')}
             >
-              分享短剧
+              Share Drama
             </button>
             <button
               className={`share-tab ${shareType === 'invite' ? 'active' : ''}`}
               onClick={() => setShareType('invite')}
             >
-              邀请注册
+              Invite Friends
             </button>
           </div>
         )}
 
         {shareType === 'drama' && (
           <div className="share-drama-info">
-            <span className="share-drama-name">{dramaTitle || '推荐短剧'}</span>
+            {dramaCover && <img className="share-drama-cover" src={dramaCover} alt="" />}
+            <span className="share-drama-name">{dramaTitle || 'Recommended Drama'}</span>
           </div>
         )}
 
         {shareType === 'invite' && (
           <div className="share-invite-info">
-            <p>邀请好友注册，你和好友都能获得积分奖励！</p>
+            <p>Invite friends to register and both of you earn bonus points!</p>
             <div className="share-code-display">
-              <span className="share-code-label">我的邀请码：</span>
+              <span className="share-code-label">Your invite code: </span>
               <span className="share-code-value">{shareCode || '---'}</span>
             </div>
           </div>
         )}
 
-        {/* 分享链接 */}
+        {/* Share URL box */}
         <div className="share-url-box">
           <input
             className="share-url-input"
@@ -118,23 +129,39 @@ export default function ShareModal({ open, onClose, dramaId, dramaTitle, shareCo
             className={`btn-copy ${copied ? 'copied' : ''}`}
             onClick={handleCopy}
           >
-            {copied ? '已复制' : '复制'}
+            {copied ? 'Copied!' : 'Copy'}
           </button>
         </div>
 
-        {/* 分享平台 */}
+        {/* Share platforms */}
         <div className="share-platforms">
-          <button className="share-platform-btn" onClick={handleShareWechat}>
-            <span className="platform-icon wechat">微</span>
-            <span>微信好友</span>
+          <button className="share-platform-btn" onClick={() => handleShareClick('facebook')}>
+            <span className="platform-icon facebook">f</span>
+            <span>Facebook</span>
+          </button>
+          <button className="share-platform-btn" onClick={() => handleShareClick('twitter')}>
+            <span className="platform-icon twitter">X</span>
+            <span>Twitter</span>
+          </button>
+          <button className="share-platform-btn" onClick={() => handleShareClick('whatsapp')}>
+            <span className="platform-icon whatsapp">W</span>
+            <span>WhatsApp</span>
+          </button>
+          <button className="share-platform-btn" onClick={() => handleShareClick('telegram')}>
+            <span className="platform-icon telegram">T</span>
+            <span>Telegram</span>
+          </button>
+          <button className="share-platform-btn" onClick={() => handleShareClick('line')}>
+            <span className="platform-icon line">L</span>
+            <span>LINE</span>
           </button>
           <button className="share-platform-btn" onClick={handleCopy}>
-            <span className="platform-icon weibo">博</span>
-            <span>复制链接</span>
+            <span className="platform-icon copy">C</span>
+            <span>Copy Link</span>
           </button>
         </div>
 
-        {/* 分享奖励提示 */}
+        {/* Share reward */}
         {shareReward && (
           <div className="share-reward-info">
             <span>{shareReward}</span>

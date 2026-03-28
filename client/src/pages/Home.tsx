@@ -6,13 +6,19 @@ import { useDebounce, usePagination } from '../hooks/useUtils';
 import AuthModal from '../components/AuthModal';
 import UserMenu from '../components/UserMenu';
 
+interface Category {
+  id: number;
+  name: string;
+  icon: string | null;
+}
+
 export default function Home() {
   const navigate = useNavigate();
   const [dramas, setDramas] = useState<Drama[]>([]);
   const [total, setTotal] = useState(0);
-  const [genres, setGenres] = useState<string[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [keyword, setKeyword] = useState('');
-  const [selectedGenre, setSelectedGenre] = useState('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const debouncedKeyword = useDebounce(keyword, 500);
@@ -29,8 +35,9 @@ export default function Home() {
     if (stored) setUser(stored);
   }, []);
 
+  // Load categories from categories table (not genres from dramas table)
   useEffect(() => {
-    api.getGenres().then(setGenres).catch(() => {
+    api.getCategories().then(setCategories).catch(() => {
       setError('加载分类失败');
     });
   }, []);
@@ -40,7 +47,7 @@ export default function Home() {
     setError('');
     api.getDramas({
       keyword: debouncedKeyword,
-      genre: selectedGenre,
+      categoryId: selectedCategoryId ?? undefined,
       page,
       pageSize: 12,
     })
@@ -54,7 +61,7 @@ export default function Home() {
         setDramas([]);
       })
       .finally(() => setLoading(false));
-  }, [debouncedKeyword, selectedGenre, page]);
+  }, [debouncedKeyword, selectedCategoryId, page]);
 
   const handleAuthSuccess = (data: User & { token: string }) => {
     setUser(data);
@@ -116,18 +123,18 @@ export default function Home() {
       <section className="content">
         <div className="filters">
           <button
-            className={`filter-tag ${!selectedGenre ? 'active' : ''}`}
-            onClick={() => { setSelectedGenre(''); goPage(1); }}
+            className={`filter-tag ${!selectedCategoryId ? 'active' : ''}`}
+            onClick={() => { setSelectedCategoryId(null); goPage(1); }}
           >
             全部
           </button>
-          {genres.map((g) => (
+          {categories.map((c) => (
             <button
-              key={g}
-              className={`filter-tag ${selectedGenre === g ? 'active' : ''}`}
-              onClick={() => { setSelectedGenre(g); goPage(1); }}
+              key={c.id}
+              className={`filter-tag ${selectedCategoryId === c.id ? 'active' : ''}`}
+              onClick={() => { setSelectedCategoryId(c.id); goPage(1); }}
             >
-              {g}
+              {c.icon || ''} {c.name}
             </button>
           ))}
         </div>

@@ -7,6 +7,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>短剧管理后台</title>
+  <script src="https://cdn.jsdelivr.net/npm/cos-js-sdk-v5/dist/cos-js-sdk-v5.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif; background: #f0f2f5; color: #333; }
@@ -151,6 +152,51 @@
     .badge-hot { background: #e74c3c; color: white; font-size: 11px; }
     .settings-section { margin-bottom: 32px; }
     .settings-section h3 { margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #eee; }
+
+    /* ===== Batch Upload ===== */
+    .upload-tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 2px solid #eee; }
+    .upload-tab { padding: 10px 24px; font-size: 14px; font-weight: 500; color: #999; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
+    .upload-tab:hover { color: #667eea; }
+    .upload-tab.active { color: #667eea; border-bottom-color: #667eea; }
+    .batch-upload-panel { display: none; }
+    .batch-upload-panel.active { display: block; }
+    .single-upload-panel { display: block; }
+    .single-upload-panel.hidden { display: none; }
+
+    .batch-drop-zone { border: 2px dashed #ccc; border-radius: 12px; padding: 32px; text-align: center; cursor: pointer; transition: all 0.3s; background: #fafafa; }
+    .batch-drop-zone:hover, .batch-drop-zone.dragover { border-color: #667eea; background: #f0f4ff; }
+    .batch-drop-zone .icon { font-size: 40px; margin-bottom: 8px; }
+    .batch-file-list { margin-top: 16px; max-height: 400px; overflow-y: auto; }
+    .batch-file-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-bottom: 1px solid #f0f0f0; border-radius: 8px; transition: background 0.2s; }
+    .batch-file-item:hover { background: #f8f9fa; }
+    .batch-file-item .file-idx { width: 36px; height: 36px; border-radius: 50%; background: #667eea; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+    .batch-file-item .file-info { flex: 1; min-width: 0; }
+    .batch-file-item .file-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .batch-file-item .file-size { font-size: 11px; color: #999; }
+    .batch-file-item .file-input { width: 60px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; text-align: center; }
+    .batch-file-item .file-remove { color: #e74c3c; cursor: pointer; font-size: 16px; padding: 4px; }
+    .batch-file-item .file-status { font-size: 12px; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+    .batch-file-item .status-pending { background: #f0f0f0; color: #999; }
+    .batch-file-item .status-uploading { background: #fff3e0; color: #e65100; }
+    .batch-file-item .status-success { background: #e8f5e9; color: #2e7d32; }
+    .batch-file-item .status-error { background: #ffebee; color: #c62828; }
+    .batch-file-item .file-progress { height: 3px; background: #eee; border-radius: 2px; margin-top: 4px; }
+    .batch-file-item .file-progress-fill { height: 100%; background: #667eea; border-radius: 2px; transition: width 0.3s; }
+
+    .batch-actions { display: flex; gap: 12px; margin-top: 16px; align-items: center; }
+    .batch-summary { font-size: 13px; color: #666; }
+    .batch-total-progress { margin-top: 12px; padding: 12px; background: #f0f9ff; border-radius: 8px; }
+    .batch-total-progress .bp-text { font-size: 13px; color: #333; margin-bottom: 6px; }
+    .batch-total-progress .bp-bar { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+    .batch-total-progress .bp-fill { height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); border-radius: 4px; transition: width 0.3s; }
+
+    /* ===== Batch Edit Episodes ===== */
+    .batch-edit-bar { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #f0f9ff; border-radius: 8px; margin-bottom: 16px; }
+    .batch-edit-bar .selected-count { font-size: 14px; font-weight: 600; color: #667eea; }
+    .batch-edit-bar .batch-action-btn { padding: 6px 14px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.2s; }
+    .batch-edit-bar .batch-action-btn:hover { border-color: #667eea; color: #667eea; }
+    .batch-edit-bar .batch-action-btn.danger:hover { border-color: #e74c3c; color: #e74c3c; }
+    .ep-checkbox { width: 16px; height: 16px; cursor: pointer; accent-color: #667eea; }
   </style>
 </head>
 <body>
@@ -236,26 +282,60 @@
       <div class="page-section" id="page-upload">
         <div class="page-header"><h1>上传视频</h1></div>
         <div class="card">
-          <div class="form-group"><label>选择短剧</label><select id="uploadDramaId"><option value="">请先添加短剧</option></select></div>
-          <div class="form-row">
-            <div class="form-group"><label>集数</label><input type="number" id="uploadEpisodeNum" placeholder="例如：1" min="1"></div>
-            <div class="form-group"><label>剧集标题（可选）</label><input type="text" id="uploadEpisodeTitle" placeholder="例如：第一集 相遇"></div>
+          <div class="form-group"><label>选择短剧</label><select id="uploadDramaId" onchange="onUploadDramaChange()"><option value="">请先添加短剧</option></select></div>
+          <div id="uploadProgressInfo" style="display:none; margin-bottom:16px; padding:12px; background:#f0f9ff; border-radius:8px; font-size:14px;">
+            <span id="uploadProgressText">已上传 0 / 0 集</span>
+            <div style="margin-top:6px; height:6px; background:#e2e8f0; border-radius:3px; overflow:hidden;"><div id="uploadProgressBar" style="height:100%; background:#3b82f6; border-radius:3px; transition:width 0.3s;"></div></div>
           </div>
-          <div class="form-group">
-            <label>视频文件</label>
-            <div class="upload-area" onclick="document.getElementById('videoFileInput').click()">
-              <div style="font-size:36px;">&#x1F3A5;</div>
-              <p>点击选择视频文件或拖拽到此处</p>
-              <p style="font-size:12px; color:#bbb;">支持 MP4, WebM, MOV 格式</p>
-              <input type="file" id="videoFileInput" accept="video/*" onchange="onVideoFileSelect(event)">
+
+          <!-- Upload Tabs -->
+          <div class="upload-tabs">
+            <div class="upload-tab active" onclick="switchUploadTab('single', this)">单集上传</div>
+            <div class="upload-tab" onclick="switchUploadTab('batch', this)">批量上传</div>
+          </div>
+
+          <!-- Single Upload -->
+          <div class="single-upload-panel" id="singleUploadPanel">
+            <div class="form-row">
+              <div class="form-group"><label>集数</label><input type="number" id="uploadEpisodeNum" placeholder="例如：1" min="1"></div>
+              <div class="form-group"><label>剧集标题（可选）</label><input type="text" id="uploadEpisodeTitle" placeholder="例如：第一集 相遇"></div>
             </div>
-            <div id="videoPreview" style="margin-top:12px;"></div>
-            <div class="upload-progress" id="uploadProgress">
-              <div class="progress-bar"><div class="progress-fill" id="uploadProgressFill"></div></div>
-              <div class="progress-text" id="uploadProgressText">上传中... 0%</div>
+            <div class="form-group">
+              <label>视频文件</label>
+              <div class="upload-area" onclick="document.getElementById('videoFileInput').click()">
+                <div style="font-size:36px;">&#x1F3A5;</div>
+                <p>点击选择视频文件或拖拽到此处</p>
+                <p style="font-size:12px; color:#bbb;">支持 MP4, WebM, MOV 格式</p>
+                <input type="file" id="videoFileInput" accept="video/*" onchange="onVideoFileSelect(event)">
+              </div>
+              <div id="videoPreview" style="margin-top:12px;"></div>
+              <div class="upload-progress" id="uploadProgress">
+                <div class="progress-bar"><div class="progress-fill" id="uploadProgressFill"></div></div>
+                <div class="progress-text" id="uploadProgressText">上传中... 0%</div>
+              </div>
+            </div>
+            <div style="margin-top:20px;"><button class="btn btn-primary" onclick="uploadVideo()" id="uploadBtn">开始上传</button></div>
+          </div>
+
+          <!-- Batch Upload -->
+          <div class="batch-upload-panel" id="batchUploadPanel">
+            <div class="batch-drop-zone" id="batchDropZone" onclick="document.getElementById('batchFileInput').click()">
+              <input type="file" id="batchFileInput" accept="video/*" multiple style="display:none" onchange="onBatchFilesSelect(event)">
+              <div class="icon">&#x1F4E5;</div>
+              <p style="font-size:15px; font-weight:500; color:#333;">点击或拖拽视频文件到此处</p>
+              <p style="font-size:12px; color:#999; margin-top:4px;">支持同时选择多个 MP4/WebM/MOV 文件，将按文件名自动排序</p>
+            </div>
+            <div class="batch-file-list" id="batchFileList"></div>
+            <div class="batch-actions" id="batchActions" style="display:none;">
+              <button class="btn btn-primary" onclick="startBatchUpload()" id="batchUploadBtn">开始批量上传</button>
+              <button class="btn btn-danger" onclick="clearBatchFiles()">清空列表</button>
+              <span class="batch-summary" id="batchSummary"></span>
+            </div>
+            <div class="batch-total-progress" id="batchTotalProgress" style="display:none;">
+              <div class="bp-text" id="batchTotalText">准备上传...</div>
+              <div class="bp-bar"><div class="bp-fill" id="batchTotalFill"></div></div>
             </div>
           </div>
-          <div style="margin-top:20px;"><button class="btn btn-primary" onclick="uploadVideo()" id="uploadBtn">开始上传</button></div>
         </div>
       </div>
 
@@ -466,6 +546,9 @@
         <div class="form-group"><label>标签</label><select id="dramaGenre"><option value="都市">都市</option><option value="古装">古装</option><option value="玄幻">玄幻</option><option value="甜宠">甜宠</option><option value="悬疑">悬疑</option><option value="搞笑">搞笑</option><option value="励志">励志</option><option value="其他">其他</option></select></div>
         <div class="form-group"><label>状态</label><select id="dramaStatus"><option value="ongoing">连载中</option><option value="completed">已完结</option><option value="draft">草稿</option></select></div>
       </div>
+      <div class="form-row">
+        <div class="form-group"><label>总集数</label><input type="number" id="dramaTotalEpisodes" placeholder="例如：24" min="0"></div>
+      </div>
       <div class="form-group"><label>短剧简介</label><textarea id="dramaDesc" placeholder="请输入短剧简介" style="height:100px;"></textarea></div>
       <div class="form-group">
         <label>封面图片</label>
@@ -487,8 +570,48 @@
         <h2 id="episodesModalTitle" style="margin:0;">剧集列表</h2>
         <div id="dramaStatsBar" class="drama-stats"></div>
       </div>
+      <!-- Batch Edit Bar -->
+      <div class="batch-edit-bar" id="batchEditBar" style="display:none;">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" class="ep-checkbox" id="batchSelectAll" onchange="toggleBatchSelectAll()"> 全选
+        </label>
+        <span class="selected-count" id="batchSelectedCount">已选 0 项</span>
+        <button class="batch-action-btn" onclick="batchEditEpisodes()">&#x270F; 批量编辑</button>
+        <button class="batch-action-btn danger" onclick="batchDeleteEpisodes()">&#x1F5D1; 批量删除</button>
+        <button class="batch-action-btn" onclick="batchRenumberEpisodes()">&#x1F504; 重新编号</button>
+        <div style="flex:1;"></div>
+        <button class="batch-action-btn" onclick="clearBatchSelection()">取消选择</button>
+      </div>
       <div id="episodesList"></div>
       <div class="form-actions"><button class="btn btn-secondary" onclick="closeEpisodesModal()">关闭</button></div>
+    </div>
+  </div>
+
+  <!-- Batch Edit Episodes Modal -->
+  <div class="modal-overlay" id="batchEditModal">
+    <div class="modal" style="width:500px;">
+      <h2>批量编辑剧集</h2>
+      <p style="color:#999; font-size:13px; margin-bottom:16px;">对选中的 <strong id="batchEditCount">0</strong> 集进行批量修改</p>
+      <div class="form-group">
+        <label>标题前缀（追加到现有标题前）</label>
+        <input type="text" id="batchEditPrefix" placeholder="例如: [精修版]">
+      </div>
+      <div class="form-group">
+        <label>标题后缀（追加到现有标题后）</label>
+        <input type="text" id="batchEditSuffix" placeholder="例如: (高清)">
+      </div>
+      <div class="form-group">
+        <label>排序偏移量（在现有排序基础上 +/-）</label>
+        <input type="number" id="batchEditSortOffset" value="0" placeholder="例如: 10">
+      </div>
+      <div class="form-group">
+        <label>集号偏移量（在现有集号基础上 +/-）</label>
+        <input type="number" id="batchEditEpNumOffset" value="0" placeholder="例如: 10">
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-secondary" onclick="closeBatchEditModal()">取消</button>
+        <button class="btn btn-primary" onclick="applyBatchEdit()">应用修改</button>
+      </div>
     </div>
   </div>
 
@@ -662,12 +785,14 @@
         const status = document.getElementById('dramaFilterStatus')?.value || 'all';
         const url = API + '/dramas?page=' + dramaPage + '&pageSize=' + dramaPageSize + '&status=' + status + (keyword ? '&keyword=' + encodeURIComponent(keyword) : '');
         const res = await fetch(url);
-        const { data } = await res.json();
+        const json = await res.json();
+        const data = json.data || {};
+        const list = data.list || [];
         const tbody = document.getElementById('dramasTableBody');
         const empty = document.getElementById('emptyDramas');
-        if (!data.list.length) { tbody.innerHTML = ''; empty.style.display = 'block'; document.getElementById('dramasPagination').innerHTML = ''; return; }
+        if (!list.length) { tbody.innerHTML = ''; empty.style.display = 'block'; document.getElementById('dramasPagination').innerHTML = ''; return; }
         empty.style.display = 'none';
-        tbody.innerHTML = data.list.map(d => '<tr>'
+        tbody.innerHTML = list.map(d => '<tr>'
           + '<td><img class="cover-thumb" src="' + (d.cover_image || '') + '" onerror="this.style.display=\'none\'"></td>'
           + '<td><strong>' + esc(d.title) + '</strong><br><small style="color:#999">' + esc((d.description || '').substring(0, 40)) + (d.description && d.description.length > 40 ? '...' : '') + '</small></td>'
           + '<td>' + esc(d.genre || d.category_name || '-') + '</td>'
@@ -703,6 +828,7 @@
       document.getElementById('dramaGenre').value = '都市';
       document.getElementById('dramaDesc').value = '';
       document.getElementById('dramaStatus').value = 'ongoing';
+      document.getElementById('dramaTotalEpisodes').value = '';
       document.getElementById('coverPreview').innerHTML = '';
       coverFile = null;
       loadCategoryOptions();
@@ -721,6 +847,7 @@
         document.getElementById('dramaGenre').value = data.genre || '都市';
         document.getElementById('dramaDesc').value = data.description || '';
         document.getElementById('dramaStatus').value = data.status;
+        document.getElementById('dramaTotalEpisodes').value = data.total_episodes || '';
         document.getElementById('coverPreview').innerHTML = data.cover_image ? '<img src="' + data.cover_image + '" style="max-width:200px;border-radius:8px;">' : '';
         coverFile = null;
         document.getElementById('dramaModal').classList.add('active');
@@ -737,7 +864,8 @@
         category_id: document.getElementById('dramaCategory').value ? Number(document.getElementById('dramaCategory').value) : null,
         genre: document.getElementById('dramaGenre').value,
         description: document.getElementById('dramaDesc').value,
-        status: document.getElementById('dramaStatus').value
+        status: document.getElementById('dramaStatus').value,
+        total_episodes: Number(document.getElementById('dramaTotalEpisodes').value) || 0
       };
       try {
         if (coverFile) {
@@ -768,8 +896,12 @@
 
     // ===== Episodes =====
     let currentEpisodesDramaId = null;
+    let batchSelectedEpisodes = new Set(); // Set of episode IDs
+
     async function viewEpisodes(dramaId, dramaTitle) {
       currentEpisodesDramaId = dramaId;
+      batchSelectedEpisodes.clear();
+      updateBatchEditBar();
       document.getElementById('episodesModalTitle').textContent = dramaTitle + ' - 剧集列表';
       try {
         const res = await fetch(API + '/dramas/' + dramaId);
@@ -783,6 +915,7 @@
         document.getElementById('episodesList').innerHTML = !data.episodes.length
           ? '<div class="empty-state"><p>暂无剧集，请前往「上传视频」页面添加</p></div>'
           : data.episodes.map((ep, i) => '<div class="episode-item">'
+            + '<input type="checkbox" class="ep-checkbox" data-ep-id="' + ep.id + '" onchange="toggleBatchSelect(' + ep.id + ', this.checked)" style="margin-right:10px;">'
             + '<div style="display:flex;align-items:center;">'
             + '<span class="episode-num">' + ep.episode_number + '</span>'
             + '<div><strong>第' + ep.episode_number + '集</strong>' + (ep.title ? ' - ' + esc(ep.title) : '') + '<br>'
@@ -796,7 +929,175 @@
       } catch (e) { showToast('加载失败', 'error'); }
     }
 
-    function closeEpisodesModal() { document.getElementById('episodesModal').classList.remove('active'); }
+    function closeEpisodesModal() {
+      document.getElementById('episodesModal').classList.remove('active');
+      batchSelectedEpisodes.clear();
+      updateBatchEditBar();
+    }
+
+    // ===== Batch Episode Selection =====
+    function toggleBatchSelect(epId, checked) {
+      if (checked) batchSelectedEpisodes.add(epId);
+      else batchSelectedEpisodes.delete(epId);
+      updateBatchEditBar();
+    }
+
+    function toggleBatchSelectAll() {
+      const allChecked = document.getElementById('batchSelectAll').checked;
+      document.querySelectorAll('.ep-checkbox[data-ep-id]').forEach(cb => {
+        cb.checked = allChecked;
+        const epId = parseInt(cb.getAttribute('data-ep-id'));
+        if (allChecked) batchSelectedEpisodes.add(epId);
+        else batchSelectedEpisodes.delete(epId);
+      });
+      updateBatchEditBar();
+    }
+
+    function clearBatchSelection() {
+      batchSelectedEpisodes.clear();
+      document.querySelectorAll('.ep-checkbox[data-ep-id]').forEach(cb => cb.checked = false);
+      document.getElementById('batchSelectAll').checked = false;
+      updateBatchEditBar();
+    }
+
+    function updateBatchEditBar() {
+      const bar = document.getElementById('batchEditBar');
+      const countEl = document.getElementById('batchSelectedCount');
+      const count = batchSelectedEpisodes.size;
+      if (count > 0) {
+        bar.style.display = 'flex';
+        countEl.textContent = '已选 ' + count + ' 项';
+      } else {
+        bar.style.display = 'none';
+      }
+    }
+
+    // ===== Batch Edit =====
+    function batchEditEpisodes() {
+      if (!batchSelectedEpisodes.size) return showToast('请先选择剧集', 'error');
+      document.getElementById('batchEditCount').textContent = batchSelectedEpisodes.size;
+      document.getElementById('batchEditPrefix').value = '';
+      document.getElementById('batchEditSuffix').value = '';
+      document.getElementById('batchEditSortOffset').value = '0';
+      document.getElementById('batchEditEpNumOffset').value = '0';
+      document.getElementById('batchEditModal').classList.add('active');
+    }
+
+    function closeBatchEditModal() {
+      document.getElementById('batchEditModal').classList.remove('active');
+    }
+
+    async function applyBatchEdit() {
+      const dramaId = currentEpisodesDramaId;
+      const prefix = document.getElementById('batchEditPrefix').value;
+      const suffix = document.getElementById('batchEditSuffix').value;
+      const sortOffset = parseInt(document.getElementById('batchEditSortOffset').value) || 0;
+      const epNumOffset = parseInt(document.getElementById('batchEditEpNumOffset').value) || 0;
+
+      if (!prefix && !suffix && sortOffset === 0 && epNumOffset === 0) {
+        return showToast('请至少设置一项修改', 'error');
+      }
+
+      closeBatchEditModal();
+      showToast('正在批量修改...', 'info');
+
+      let successCount = 0;
+      for (const epId of batchSelectedEpisodes) {
+        try {
+          // First get current episode data
+          const res = await fetch(API + '/dramas/' + dramaId);
+          const { data } = await res.json();
+          const ep = data.episodes.find(e => e.id === epId);
+          if (!ep) continue;
+
+          const newTitle = prefix + (ep.title || '') + suffix;
+          const newSort = Math.max(0, ep.sort_order + sortOffset);
+          const newEpNum = epNumOffset !== 0 ? Math.max(1, ep.episode_number + epNumOffset) : undefined;
+
+          const body = { title: newTitle, sort_order: newSort };
+          if (newEpNum !== undefined) body.episode_number = newEpNum;
+
+          await fetch(API + '/dramas/' + dramaId + '/episodes/' + epId, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', ...authHeaders() },
+            body: JSON.stringify(body)
+          });
+          successCount++;
+        } catch (e) {
+          console.error('Batch edit error for episode ' + epId, e);
+        }
+      }
+
+      showToast('批量修改完成！成功 ' + successCount + ' 个', 'success');
+      batchSelectedEpisodes.clear();
+      viewEpisodes(dramaId, document.getElementById('episodesModalTitle').textContent.replace(' - 剧集列表', ''));
+      loadDramas();
+    }
+
+    // ===== Batch Delete =====
+    async function batchDeleteEpisodes() {
+      const count = batchSelectedEpisodes.size;
+      if (!count) return;
+      if (!confirm('确定删除选中的 ' + count + ' 集？视频文件将被永久删除！')) return;
+
+      let successCount = 0;
+      const dramaId = currentEpisodesDramaId;
+
+      for (const epId of batchSelectedEpisodes) {
+        try {
+          await fetch(API + '/dramas/' + dramaId + '/episodes/' + epId, {
+            method: 'DELETE', headers: authHeaders()
+          });
+          successCount++;
+        } catch (e) {
+          console.error('Batch delete error for episode ' + epId, e);
+        }
+      }
+
+      showToast('批量删除完成！删除 ' + successCount + ' 个', 'success');
+      batchSelectedEpisodes.clear();
+      viewEpisodes(dramaId, document.getElementById('episodesModalTitle').textContent.replace(' - 剧集列表', ''));
+      loadDramas();
+    }
+
+    // ===== Batch Renumber =====
+    async function batchRenumberEpisodes() {
+      const count = batchSelectedEpisodes.size;
+      if (!count) return;
+      if (!confirm('确定对选中的 ' + count + ' 集按当前顺序重新编号？\n这将把它们按排序号依次编为第1集、第2集...')) return;
+
+      const dramaId = currentEpisodesDramaId;
+      try {
+        // Get all episodes and sort
+        const res = await fetch(API + '/dramas/' + dramaId);
+        const { data } = await res.json();
+        const selectedEps = data.episodes
+          .filter(e => batchSelectedEpisodes.has(e.id))
+          .sort((a, b) => a.sort_order - b.sort_order);
+
+        let successCount = 0;
+        for (let i = 0; i < selectedEps.length; i++) {
+          const ep = selectedEps[i];
+          try {
+            await fetch(API + '/dramas/' + dramaId + '/episodes/' + ep.id, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json', ...authHeaders() },
+              body: JSON.stringify({ episode_number: i + 1, sort_order: i + 1 })
+            });
+            successCount++;
+          } catch (e) {
+            console.error('Renumber error for episode ' + ep.id, e);
+          }
+        }
+
+        showToast('重新编号完成！修改 ' + successCount + ' 个', 'success');
+        batchSelectedEpisodes.clear();
+        viewEpisodes(dramaId, document.getElementById('episodesModalTitle').textContent.replace(' - 剧集列表', ''));
+        loadDramas();
+      } catch (e) {
+        showToast('操作失败', 'error');
+      }
+    }
 
     async function deleteEpisode(dramaId, episodeId, epNum) {
       if (!confirm('确定删除第' + epNum + '集？视频文件将被永久删除！')) return;
@@ -832,13 +1133,37 @@
     }
 
     // ===== Upload =====
+    let dramaEpisodeMap = {};
     async function loadDramaOptions() {
       try {
         const res = await fetch(API + '/dramas?pageSize=100');
-        const { data } = await res.json();
+        const json = await res.json();
+        const list = (json.data && json.data.list) || [];
+        dramaEpisodeMap = {};
         const sel = document.getElementById('uploadDramaId');
-        sel.innerHTML = data.list.length ? '<option value="">请选择短剧</option>' + data.list.map(d => '<option value="' + d.id + '">' + esc(d.title) + ' (' + (d.episode_count || 0) + '集)</option>').join('') : '<option value="">请先添加短剧</option>';
+        sel.innerHTML = list.length ? '<option value="">请选择短剧</option>' + list.map(d => {
+          dramaEpisodeMap[d.id] = { episode_count: d.episode_count || 0, total_episodes: d.total_episodes || 0 };
+          return '<option value="' + d.id + '">' + esc(d.title) + ' (' + (d.episode_count || 0) + '/' + (d.total_episodes || '?') + '集)</option>';
+        }).join('') : '<option value="">请先添加短剧</option>';
       } catch (e) { console.error(e); }
+    }
+
+    function onUploadDramaChange() {
+      const dramaId = document.getElementById('uploadDramaId').value;
+      const info = dramaEpisodeMap[dramaId];
+      const progressEl = document.getElementById('uploadProgressInfo');
+      if (info && dramaId) {
+        progressEl.style.display = 'block';
+        const total = info.total_episodes > 0 ? info.total_episodes : '?';
+        document.getElementById('uploadProgressText').textContent = '已上传 ' + info.episode_count + ' / ' + total + ' 集';
+        const pct = info.total_episodes > 0 ? Math.min(100, Math.round(info.episode_count / info.total_episodes * 100)) : 0;
+        document.getElementById('uploadProgressBar').style.width = pct + '%';
+        document.getElementById('uploadProgressBar').style.background = (info.total_episodes > 0 && info.episode_count >= info.total_episodes) ? '#22c55e' : '#3b82f6';
+        // Auto-set next episode number
+        document.getElementById('uploadEpisodeNum').value = String(info.episode_count + 1);
+      } else {
+        progressEl.style.display = 'none';
+      }
     }
 
     function onVideoFileSelect(e) {
@@ -853,46 +1178,315 @@
       if (!dramaId) return showToast('请选择短剧', 'error');
       if (!epNum) return showToast('请输入集数', 'error');
       if (!selectedVideoFile) return showToast('请选择视频文件', 'error');
-      const formData = new FormData();
-      formData.append('video', selectedVideoFile);
-      formData.append('dramaId', dramaId);
-      formData.append('episode_number', epNum);
-      formData.append('title', epTitle);
       const btn = document.getElementById('uploadBtn');
       btn.textContent = '上传中...'; btn.disabled = true;
       const progressEl = document.getElementById('uploadProgress');
       const progressFill = document.getElementById('uploadProgressFill');
       const progressText = document.getElementById('uploadProgressText');
       progressEl.classList.add('active');
+
+      function resetBtn() {
+        progressEl.classList.remove('active');
+        progressFill.style.width = '0%';
+        btn.textContent = '开始上传';
+        btn.disabled = false;
+      }
+
       try {
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', '/api/upload/video');
-        if (adminToken) xhr.setRequestHeader('Authorization', 'Bearer ' + adminToken);
-        xhr.upload.onprogress = function(e) {
-          if (e.lengthComputable) {
-            const pct = Math.round((e.loaded / e.total) * 100);
-            progressFill.style.width = pct + '%';
-            progressText.textContent = '上传中... ' + pct + '%';
+        // Step 1: Get COS temporary credentials
+        const stsRes = await fetch(API + '/cos/sts', { headers: authHeaders() });
+        const stsData = await stsRes.json();
+        if (!stsData.success) { resetBtn(); return showToast(stsData.message || '获取上传凭证失败', 'error'); }
+
+        const { tmpSecretId, tmpSecretKey, sessionToken, bucket, region } = stsData.data;
+
+        // Step 2: Upload to COS directly
+        const ext = selectedVideoFile.name.split('.').pop();
+        const key = 'videos/' + Date.now() + '-' + Math.random().toString(36).substr(2, 8) + '.' + ext;
+        const videoUrl = 'https://' + bucket + '.cos.' + region + '.myqcloud.com/' + key;
+
+        const COSClass = (typeof COS !== 'undefined') ? COS : (typeof window.COS !== 'undefined' ? window.COS : null);
+        if (!COSClass) { resetBtn(); return showToast('COS SDK 加载失败，请刷新页面重试', 'error'); }
+
+        const cos = new COSClass({
+          getAuthorization: function(_opts, callback) {
+            callback({ TmpSecretId: tmpSecretId, TmpSecretKey: tmpSecretKey, SecurityToken: sessionToken, StartTime: stsData.data.startTime, ExpiredTime: stsData.data.expiredTime });
           }
-        };
-        xhr.onload = function() {
-          progressEl.classList.remove('active');
-          progressFill.style.width = '0%';
-          const data = JSON.parse(xhr.responseText);
-          if (data.success) {
-            showToast('上传成功！', 'success');
-            document.getElementById('uploadEpisodeNum').value = String(parseInt(epNum) + 1);
-            document.getElementById('uploadEpisodeTitle').value = '';
-            document.getElementById('videoPreview').innerHTML = '';
-            document.getElementById('videoFileInput').value = '';
-            selectedVideoFile = null;
-            loadDramas(); loadDramaOptions();
-          } else { showToast(data.message || '上传失败', 'error'); }
-        };
-        xhr.onerror = function() { progressEl.classList.remove('active'); showToast('上传失败', 'error'); };
-        xhr.send(formData);
-      } catch (e) { progressEl.classList.remove('active'); showToast('上传失败', 'error'); }
-      finally { btn.textContent = '开始上传'; btn.disabled = false; }
+        });
+
+        await new Promise((resolve, reject) => {
+          cos.putObject({
+            Bucket: bucket,
+            Region: region,
+            Key: key,
+            Body: selectedVideoFile,
+            ACL: 'public-read',
+          }, function(err, data) {
+            if (err) { reject(err); return; }
+            resolve(data);
+          });
+        });
+
+        // Simulate progress to 100% (COS SDK doesn't have upload progress for putObject)
+        progressFill.style.width = '100%';
+        progressText.textContent = '保存记录... 100%';
+
+        // Step 3: Create episode record in database
+        const completeRes = await fetch(API + '/cos/video-complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ dramaId, episode_number: epNum, title: epTitle, videoUrl })
+        });
+        const completeData = await completeRes.json();
+
+        resetBtn();
+        if (completeData.success) {
+          showToast('上传成功！', 'success');
+          document.getElementById('uploadEpisodeNum').value = String(parseInt(epNum) + 1);
+          document.getElementById('uploadEpisodeTitle').value = '';
+          document.getElementById('videoPreview').innerHTML = '';
+          document.getElementById('videoFileInput').value = '';
+          selectedVideoFile = null;
+          loadDramas().then(() => {
+            loadDramaOptions().then(() => onUploadDramaChange());
+          });
+        } else {
+          showToast(completeData.message || '保存记录失败', 'error');
+        }
+      } catch (err) {
+        resetBtn();
+        showToast('上传失败: ' + (err.message || '网络错误'), 'error');
+      }
+    }
+
+    // ===== Upload Tab Switch =====
+    function switchUploadTab(tab, el) {
+      document.querySelectorAll('.upload-tab').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      if (tab === 'single') {
+        document.getElementById('singleUploadPanel').classList.remove('hidden');
+        document.getElementById('batchUploadPanel').classList.remove('active');
+      } else {
+        document.getElementById('singleUploadPanel').classList.add('hidden');
+        document.getElementById('batchUploadPanel').classList.add('active');
+      }
+    }
+
+    // ===== Batch Upload =====
+    let batchFiles = []; // { file, epNum, status: 'pending'|'uploading'|'success'|'error', progress: 0 }
+    let batchUploading = false;
+
+    // Drag and drop
+    document.addEventListener('DOMContentLoaded', function() {
+      const dropZone = document.getElementById('batchDropZone');
+      if (!dropZone) return;
+      dropZone.addEventListener('dragover', function(e) { e.preventDefault(); e.stopPropagation(); dropZone.classList.add('dragover'); });
+      dropZone.addEventListener('dragleave', function(e) { e.preventDefault(); e.stopPropagation(); dropZone.classList.remove('dragover'); });
+      dropZone.addEventListener('drop', function(e) {
+        e.preventDefault(); e.stopPropagation(); dropZone.classList.remove('dragover');
+        if (batchUploading) return;
+        const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('video/'));
+        if (files.length) addBatchFiles(files);
+      });
+    });
+
+    function onBatchFilesSelect(e) {
+      if (batchUploading) return;
+      const files = Array.from(e.target.files);
+      if (files.length) addBatchFiles(files);
+      e.target.value = '';
+    }
+
+    function addBatchFiles(files) {
+      const dramaId = document.getElementById('uploadDramaId').value;
+      if (!dramaId) { showToast('请先选择短剧', 'error'); return; }
+
+      // Sort files by name naturally
+      files.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+
+      const startEp = batchFiles.length > 0 ? Math.max(...batchFiles.map(f => f.epNum)) + 1 : (dramaEpisodeMap[dramaId] ? dramaEpisodeMap[dramaId].episode_count + 1 : 1);
+
+      files.forEach((file, i) => {
+        // Try to detect episode number from filename
+        let detectedEp = startEp + i;
+        const match = file.name.match(/(\d{1,3})/);
+        if (match && parseInt(match[1]) > 0 && parseInt(match[1]) < 1000) {
+          detectedEp = parseInt(match[1]);
+        }
+        batchFiles.push({ file, epNum: detectedEp, title: '', status: 'pending', progress: 0 });
+      });
+
+      renderBatchFileList();
+    }
+
+    function removeBatchFile(idx) {
+      if (batchUploading) return;
+      batchFiles.splice(idx, 1);
+      renderBatchFileList();
+    }
+
+    function moveBatchFile(idx, direction) {
+      if (batchUploading) return;
+      const newIdx = idx + direction;
+      if (newIdx < 0 || newIdx >= batchFiles.length) return;
+      const temp = batchFiles[idx];
+      batchFiles[idx] = batchFiles[newIdx];
+      batchFiles[newIdx] = temp;
+      renderBatchFileList();
+    }
+
+    function updateBatchFileEpNum(idx, val) {
+      if (batchUploading) return;
+      batchFiles[idx].epNum = parseInt(val) || idx + 1;
+    }
+
+    function clearBatchFiles() {
+      if (batchUploading) return;
+      batchFiles = [];
+      renderBatchFileList();
+    }
+
+    function renderBatchFileList() {
+      const container = document.getElementById('batchFileList');
+      const actions = document.getElementById('batchActions');
+      const summary = document.getElementById('batchSummary');
+
+      if (batchFiles.length === 0) {
+        container.innerHTML = '';
+        actions.style.display = 'none';
+        return;
+      }
+
+      actions.style.display = 'flex';
+      const totalSize = batchFiles.reduce((s, f) => s + f.file.size, 0);
+      summary.textContent = '共 ' + batchFiles.length + ' 个文件，' + (totalSize / 1024 / 1024).toFixed(1) + ' MB';
+
+      container.innerHTML = batchFiles.map((f, i) => {
+        const statusClass = 'status-' + f.status;
+        const statusText = f.status === 'pending' ? '等待中' : f.status === 'uploading' ? '上传中 ' + f.progress + '%' : f.status === 'success' ? '成功' : '失败';
+        return '<div class="batch-file-item">'
+          + '<span class="file-idx">' + (i + 1) + '</span>'
+          + '<div class="file-info">'
+          + '<div class="file-name">' + esc(f.file.name) + '</div>'
+          + '<div style="display:flex;align-items:center;gap:8px;margin-top:2px;">'
+          + '<span class="file-size">' + (f.file.size / 1024 / 1024).toFixed(1) + ' MB</span>'
+          + '<label style="font-size:11px;color:#999;">集号:</label>'
+          + '<input type="number" class="file-input" value="' + f.epNum + '" min="1" onchange="updateBatchFileEpNum(' + i + ',this.value)"' + (batchUploading ? ' disabled' : '') + '>'
+          + '<span class="file-status ' + statusClass + '">' + statusText + '</span>'
+          + '</div>'
+          + (f.status === 'uploading' ? '<div class="file-progress"><div class="file-progress-fill" style="width:' + f.progress + '%;"></div></div>' : '')
+          + '</div>'
+          + (batchUploading ? '' : '<span class="file-remove" onclick="removeBatchFile(' + i + ')">&times;</span>')
+          + (!batchUploading && batchFiles.length > 1
+            ? '<div style="display:flex;flex-direction:column;gap:2px;margin-left:4px;">'
+            + '<span style="cursor:pointer;font-size:14px;color:#999;" onclick="moveBatchFile(' + i + ',-1)" title="上移">&#x25B2;</span>'
+            + '<span style="cursor:pointer;font-size:14px;color:#999;" onclick="moveBatchFile(' + i + ',1)" title="下移">&#x25BC;</span>'
+            + '</div>'
+            : '')
+          + '</div>';
+      }).join('');
+    }
+
+    async function startBatchUpload() {
+      const dramaId = document.getElementById('uploadDramaId').value;
+      if (!dramaId) return showToast('请选择短剧', 'error');
+      const pending = batchFiles.filter(f => f.status === 'pending');
+      if (!pending.length) return showToast('没有待上传的文件', 'error');
+
+      batchUploading = true;
+      document.getElementById('batchUploadBtn').disabled = true;
+      document.getElementById('batchUploadBtn').textContent = '上传中...';
+      const totalProgress = document.getElementById('batchTotalProgress');
+      const totalFill = document.getElementById('batchTotalFill');
+      const totalText = document.getElementById('batchTotalText');
+      totalProgress.style.display = 'block';
+
+      let successCount = 0, failCount = 0;
+
+      for (let i = 0; i < batchFiles.length; i++) {
+        const f = batchFiles[i];
+        if (f.status !== 'pending') continue;
+
+        f.status = 'uploading';
+        f.progress = 0;
+        renderBatchFileList();
+
+        try {
+          // Step 1: Get COS credentials
+          const stsRes = await fetch(API + '/cos/sts', { headers: authHeaders() });
+          const stsData = await stsRes.json();
+          if (!stsData.success) throw new Error(stsData.message || '获取上传凭证失败');
+
+          const { tmpSecretId, tmpSecretKey, sessionToken, bucket, region } = stsData.data;
+
+          // Step 2: Upload to COS
+          const ext = f.file.name.split('.').pop();
+          const key = 'videos/' + Date.now() + '-' + Math.random().toString(36).substr(2, 8) + '.' + ext;
+          const videoUrl = 'https://' + bucket + '.cos.' + region + '.myqcloud.com/' + key;
+
+          const COSClass = (typeof COS !== 'undefined') ? COS : (typeof window.COS !== 'undefined' ? window.COS : null);
+          if (!COSClass) throw new Error('COS SDK 加载失败');
+
+          const cos = new COSClass({
+            getAuthorization: function(_opts, callback) {
+              callback({ TmpSecretId: tmpSecretId, TmpSecretKey: tmpSecretKey, SecurityToken: sessionToken, StartTime: stsData.data.startTime, ExpiredTime: stsData.data.expiredTime });
+            }
+          });
+
+          await new Promise((resolve, reject) => {
+            cos.putObject({
+              Bucket: bucket, Region: region, Key: key, Body: f.file, ACL: 'public-read',
+            }, function(err, data) { if (err) reject(err); else resolve(data); });
+          });
+
+          f.progress = 90;
+          renderBatchFileList();
+
+          // Step 3: Save episode record
+          const completeRes = await fetch(API + '/cos/video-complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeaders() },
+            body: JSON.stringify({ dramaId, episode_number: f.epNum, title: f.title || '', videoUrl })
+          });
+          const completeData = await completeRes.json();
+
+          if (completeData.success) {
+            f.status = 'success'; f.progress = 100; successCount++;
+          } else {
+            f.status = 'error'; failCount++;
+          }
+        } catch (err) {
+          f.status = 'error'; failCount++;
+          console.error('Batch upload error for file ' + f.file.name + ':', err);
+        }
+
+        renderBatchFileList();
+        // Update total progress
+        const done = batchFiles.filter(x => x.status === 'success' || x.status === 'error').length;
+        const pct = Math.round(done / pending.length * 100);
+        totalFill.style.width = pct + '%';
+        totalText.textContent = '上传进度: ' + done + ' / ' + pending.length + ' (成功 ' + successCount + ', 失败 ' + failCount + ')';
+      }
+
+      batchUploading = false;
+      document.getElementById('batchUploadBtn').disabled = false;
+      document.getElementById('batchUploadBtn').textContent = '开始批量上传';
+
+      showToast('批量上传完成！成功 ' + successCount + ' 个' + (failCount > 0 ? '，失败 ' + failCount + ' 个' : ''), successCount > 0 ? 'success' : 'error');
+
+      // Remove successful uploads, keep failed for retry
+      if (failCount === 0) {
+        batchFiles = [];
+      } else {
+        batchFiles = batchFiles.filter(f => f.status === 'error');
+        batchFiles.forEach(f => f.status = 'pending');
+      }
+      renderBatchFileList();
+
+      // Refresh drama list
+      loadDramas().then(() => {
+        loadDramaOptions().then(() => onUploadDramaChange());
+      });
     }
 
     function onCoverFileSelect(e) {
@@ -903,8 +1497,9 @@
     // ===== Categories =====
     async function loadCategories() {
       try {
-        const res = await fetch(API + '/categories/with-count');
-        const { data } = await res.json();
+        const res = await fetch(API + '/categories/with-count', { headers: authHeaders() });
+        const json = await res.json();
+        const data = json.data || [];
         const tbody = document.getElementById('categoriesTableBody');
         const empty = document.getElementById('emptyCategories');
         if (!data.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
@@ -923,7 +1518,8 @@
     }
 
     function loadCategoryOptions() {
-      fetch(API + '/categories').then(r => r.json()).then(({ data }) => {
+      fetch(API + '/categories').then(r => r.json()).then(json => {
+        const data = json.data || [];
         const sel = document.getElementById('dramaCategory');
         sel.innerHTML = '<option value="">不选择分类</option>' + data.map(c => '<option value="' + c.id + '">' + esc(c.icon || '') + ' ' + esc(c.name) + '</option>').join('');
       }).catch(console.error);
@@ -1384,7 +1980,7 @@
       try {
         const res = await fetch(API + '/admin/vip-plans', { headers: authHeaders() });
         const data = await res.json();
-        const plan = data.data.find((p: any) => p.id === id);
+        const plan = data.data.find(p => p.id === id);
         if (plan) showVipPlanModal(plan);
       } catch (e) { showToast('加载失败', 'error'); }
     }

@@ -242,10 +242,11 @@ export const settingsApi = {
 
 export const api = {
   // Dramas
-  getDramas: (params?: { keyword?: string; genre?: string; page?: number; pageSize?: number; status?: string }) => {
+  getDramas: (params?: { keyword?: string; genre?: string; categoryId?: number; page?: number; pageSize?: number; status?: string }) => {
     const search = new URLSearchParams();
     if (params?.keyword) search.set('keyword', params.keyword);
     if (params?.genre) search.set('genre', params.genre);
+    if (params?.categoryId) search.set('categoryId', String(params.categoryId));
     if (params?.page) search.set('page', String(params.page));
     if (params?.pageSize) search.set('pageSize', String(params.pageSize));
     if (params?.status) search.set('status', params.status);
@@ -263,11 +264,17 @@ export const api = {
   // Categories (fixes #9)
   getCategories: () => request<Array<{ id: number; name: string; drama_count?: number }>>('/categories'),
 
-  getVideoUrl: (videoPath: string) => `/${videoPath}`,
+  getVideoUrl: (videoPath: string) => {
+    if (!videoPath) return '';
+    if (videoPath.startsWith('http://') || videoPath.startsWith('https://')) return videoPath;
+    if (videoPath.startsWith('/')) return videoPath;
+    return `/${videoPath}`;
+  },
 
   getCoverUrl: (coverPath: string) => {
     if (!coverPath) return '';
     if (coverPath.startsWith('http://') || coverPath.startsWith('https://')) return coverPath;
+    if (coverPath.startsWith('/')) return coverPath;
     return `/${coverPath}`;
   },
 
