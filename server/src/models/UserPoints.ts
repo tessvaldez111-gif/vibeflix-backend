@@ -41,11 +41,13 @@ export async function addPoints(userId: number, amount: number, source: string, 
   const conn = await (await import('../db')).getConnection();
   try {
     await conn.beginTransaction();
-    const [row] = await conn.query('SELECT * FROM user_points WHERE user_id = ? FOR UPDATE', [userId]) as any[];
+    const [rows] = await conn.query('SELECT * FROM user_points WHERE user_id = ? FOR UPDATE', [userId]) as any[];
+    const row = (rows as any[])?.[0];
     if (!row) {
       await conn.query('INSERT INTO user_points (user_id, balance, total_earned) VALUES (?, 0, 0)', [userId]);
-      const [newRow] = await conn.query('SELECT * FROM user_points WHERE user_id = ? FOR UPDATE', [userId]) as any[];
-      const balance = newRow.balance + amount;
+      const [newRows] = await conn.query('SELECT * FROM user_points WHERE user_id = ? FOR UPDATE', [userId]) as any[];
+      const existing = (newRows as any[])?.[0];
+      const balance = (existing?.balance || 0) + amount;
       await conn.query(
         'UPDATE user_points SET balance = ?, total_earned = total_earned + ? WHERE user_id = ?',
         [balance, amount, userId]
@@ -57,7 +59,7 @@ export async function addPoints(userId: number, amount: number, source: string, 
       await conn.commit();
       return balance;
     }
-    const balance = row.balance + amount;
+    const balance = (row.balance || 0) + amount;
     await conn.query(
       'UPDATE user_points SET balance = ?, total_earned = total_earned + ? WHERE user_id = ?',
       [balance, amount, userId]

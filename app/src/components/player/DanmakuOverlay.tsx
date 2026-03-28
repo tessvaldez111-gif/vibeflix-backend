@@ -55,16 +55,20 @@ const DanmakuOverlay: React.FC<Props> = memo(({ danmakuList, currentTime, enable
       duration: SPEED_MS,
       useNativeDriver: true,
     }).start(() => {
-      // Remove after animation completes
+      // Remove from active list after animation completes
       activeRef.current = activeRef.current.filter(a => a._id !== item._id);
-      renderedIds.current.delete(String(item.id));
+      setVisibleItems([...activeRef.current]);
+      // Do NOT delete from renderedIds — danmaku should only appear once
     });
   }, []);
 
   // Watch for new danmaku at current time
   useEffect(() => {
     if (!enabled) {
+      // When disabled, clear everything
+      activeRef.current = [];
       setVisibleItems([]);
+      // Note: don't clear renderedIds so re-enabling won't replay old ones
       return;
     }
 
@@ -75,10 +79,12 @@ const DanmakuOverlay: React.FC<Props> = memo(({ danmakuList, currentTime, enable
       setVisibleItems([...activeRef.current]);
     }
 
-    // Periodic cleanup
+    // Periodic cleanup to remove finished animations from visible list
     if (!cleanupTimer.current) {
       cleanupTimer.current = setInterval(() => {
-        setVisibleItems([...activeRef.current]);
+        if (activeRef.current.length !== visibleItems.length) {
+          setVisibleItems([...activeRef.current]);
+        }
       }, 2000);
     }
 

@@ -162,6 +162,7 @@ router.post('/points/signin', optionalAuth, async (req: AuthRequest, res: Respon
     );
     res.json({ success: true, data: { balance, points: settings.dailySigninPoints } });
   } catch (err: any) {
+    console.error('Signin error:', err);
     res.status(500).json({ success: false, message: '签到失败' });
   }
 });

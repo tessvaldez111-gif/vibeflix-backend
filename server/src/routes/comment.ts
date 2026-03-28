@@ -270,8 +270,8 @@ router.post('/ad-reward/claim', requireAuth, async (req: AuthRequest, res: Respo
     try {
       await conn.beginTransaction();
       await conn.query(
-        `INSERT INTO ad_reward_records (user_id, points) VALUES (?, ?)`,
-        [req.user.id, pointsPerAd]
+        `INSERT INTO ad_reward_records (user_id, drama_id, episode_id, reward_points) VALUES (?, ?, ?, ?)`,
+        [req.user.id, req.body.dramaId, req.body.episodeId, pointsPerAd]
       );
       await conn.query(
         `INSERT INTO user_points (user_id, balance) VALUES (?, ?)
