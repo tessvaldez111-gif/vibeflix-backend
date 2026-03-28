@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import Video, { VideoRef, ResizeMode, OnLoadData, OnProgressData } from 'react-native-video';
 import { getMediaUrl } from '../../services/api';
+import { adRewardService } from '../../services/comment.service';
 import { formatDuration, formatNumber } from '../../utils/format';
 import { COLORS } from '../../utils/constants';
 import { usePlayerStore, PLAYBACK_SPEEDS, type PlaybackSpeed } from '../../stores/playerStore';
@@ -466,8 +467,13 @@ const SwipeVideoItem: React.FC<Props> = memo(({
         episodeId={data.id}
         rewardPoints={20}
         onClose={() => setShowAdReward(false)}
-        onClaimed={() => {
-          Alert.alert('Reward Claimed!', '+20 points added to your balance');
+        onClaimed={async (points) => {
+          try {
+            const result = await adRewardService.claimReward(data.drama_id, data.id);
+            Alert.alert('Reward Claimed!', `+${result.points} points added! Balance: ${result.balance}`);
+          } catch (err: any) {
+            Alert.alert('Error', err.response?.data?.message || 'Failed to claim reward');
+          }
           setShowAdReward(false);
         }}
       />

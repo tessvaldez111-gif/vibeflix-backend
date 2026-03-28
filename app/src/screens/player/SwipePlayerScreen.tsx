@@ -257,9 +257,17 @@ export const SwipePlayerScreen: React.FC = () => {
       if (isLiked) {
         await interactionService.removeFavorite(dramaId, 'like');
         setLikedDramas(prev => { const s = new Set(prev); s.delete(dramaId); return s; });
+        setDramaStats(prev => ({
+          ...prev,
+          [dramaId]: { ...prev[dramaId], like_count: Math.max(0, (prev[dramaId]?.like_count || 0) - 1) },
+        }));
       } else {
         await interactionService.addFavorite(dramaId, 'like');
         setLikedDramas(prev => new Set([...prev, dramaId]));
+        setDramaStats(prev => ({
+          ...prev,
+          [dramaId]: { ...prev[dramaId], like_count: (prev[dramaId]?.like_count || 0) + 1 },
+        }));
       }
     } catch (_) {}
   }, [isAuthenticated, likedDramas]);
@@ -271,9 +279,17 @@ export const SwipePlayerScreen: React.FC = () => {
       if (isFav) {
         await interactionService.removeFavorite(dramaId, 'favorite');
         setFavoritedDramas(prev => { const s = new Set(prev); s.delete(dramaId); return s; });
+        setDramaStats(prev => ({
+          ...prev,
+          [dramaId]: { ...prev[dramaId], collect_count: Math.max(0, (prev[dramaId]?.collect_count || 0) - 1) },
+        }));
       } else {
         await interactionService.addFavorite(dramaId, 'favorite');
         setFavoritedDramas(prev => new Set([...prev, dramaId]));
+        setDramaStats(prev => ({
+          ...prev,
+          [dramaId]: { ...prev[dramaId], collect_count: (prev[dramaId]?.collect_count || 0) + 1 },
+        }));
       }
     } catch (_) {}
   }, [isAuthenticated, favoritedDramas]);

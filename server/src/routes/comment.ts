@@ -28,7 +28,7 @@ router.get('/comments', async (req: AuthRequest, res: Response) => {
       orderBy = 'c.like_count DESC, c.created_at DESC';
     }
 
-    const [rows] = await query(
+    const rows = await query(
       `SELECT c.*, u.username, u.nickname, u.avatar,
               (SELECT COUNT(*) FROM comment_likes cl WHERE cl.comment_id = c.id) as like_count
        FROM comments c
@@ -57,7 +57,7 @@ router.get('/comments', async (req: AuthRequest, res: Response) => {
     const userId = req.user?.id || 0;
     if (userId > 0 && comments.length > 0) {
       const commentIds = comments.map(c => c.id);
-      const [likes] = await query(
+      const likes = await query(
         `SELECT comment_id FROM comment_likes WHERE user_id = ? AND comment_id IN (?)`,
         [userId, commentIds]
       ) as any[];
@@ -66,7 +66,7 @@ router.get('/comments', async (req: AuthRequest, res: Response) => {
     }
 
     // Get total count
-    const [countRows] = await query(`SELECT COUNT(*) as total FROM comments c ${where}`, params) as any[];
+    const countRows = await query(`SELECT COUNT(*) as total FROM comments c ${where}`, params) as any[];
     const total = countRows?.[0]?.total || 0;
 
     res.json({
@@ -95,14 +95,14 @@ router.post('/comments', requireAuth, async (req: AuthRequest, res: Response) =>
       return res.status(400).json({ success: false, message: 'Missing dramaId or content' });
     }
 
-    const [result] = await query(
+    const result = await query(
       'INSERT INTO comments (drama_id, episode_id, user_id, content) VALUES (?, ?, ?, ?)',
       [parseInt(dramaId), episodeId ? parseInt(episodeId) : null, req.user.id, content.trim().slice(0, 500)]
-    ) as any[];
+    ) as any;
 
-    const [comment] = await query(
+    const comment = await query(
       `SELECT c.*, u.username, u.nickname, u.avatar FROM comments c JOIN users u ON c.user_id = u.id WHERE c.id = ?`,
-      [(result as any).insertId]
+      [result.insertId]
     ) as any[];
 
     res.json({ success: true, data: comment?.[0] || null });
@@ -116,7 +116,7 @@ router.post('/comments', requireAuth, async (req: AuthRequest, res: Response) =>
 router.post('/comments/:id/like', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user?.id) return res.status(401).json({ success: false, message: 'Login required' });
-    const commentId = parseInt(req.params.id);
+    const commentId = parseInt(req.params.id as string);
 
     await query(
       `INSERT IGNORE INTO comment_likes (comment_id, user_id) VALUES (?, ?)`,
@@ -139,12 +139,12 @@ router.post('/comments/:id/like', requireAuth, async (req: AuthRequest, res: Res
 router.delete('/comments/:id/like', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user?.id) return res.status(401).json({ success: false, message: 'Login required' });
-    const commentId = parseInt(req.params.id);
+    const commentId = parseInt(req.params.id as string);
 
-    const [result] = await query(
+    const result = await query(
       `DELETE FROM comment_likes WHERE comment_id = ? AND user_id = ?`,
       [commentId, req.user.id]
-    ) as any[];
+    ) as any;
 
     if ((result as any).affectedRows > 0) {
       await query(
@@ -170,7 +170,7 @@ router.get('/danmaku', async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ success: false, message: 'dramaId and episodeId are required' });
     }
 
-    const [rows] = await query(
+    const rows = await query(
       `SELECT * FROM danmaku WHERE drama_id = ? AND episode_id = ? ORDER BY time ASC`,
       [parseInt(dramaId as string), parseInt(episodeId as string)]
     ) as any[];
@@ -211,14 +211,14 @@ router.get('/ad-reward/today', requireAuth, async (req: AuthRequest, res: Respon
   try {
     if (!req.user?.id) return res.status(401).json({ success: false, message: 'Login required' });
 
-    const [rows] = await query(
+    const rows = await query(
       `SELECT COUNT(*) as count, COALESCE(SUM(points), 0) as total_points
        FROM ad_reward_records
        WHERE user_id = ? AND DATE(created_at) = CURDATE()`,
       [req.user.id]
     ) as any[];
 
-    const [settings] = await query(
+    const settings = await query(
       `SELECT \`key\`, value FROM system_settings WHERE \`key\` IN ('ad_reward_points', 'ad_daily_limit')`
     ) as any[];
 
@@ -245,7 +245,7 @@ router.post('/ad-reward/claim', requireAuth, async (req: AuthRequest, res: Respo
   try {
     if (!req.user?.id) return res.status(401).json({ success: false, message: 'Login required' });
 
-    const [settings] = await query(
+    const settings = await query(
       `SELECT \`key\`, value FROM system_settings WHERE \`key\` IN ('ad_reward_points', 'ad_daily_limit')`
     ) as any[];
 
@@ -256,7 +256,7 @@ router.post('/ad-reward/claim', requireAuth, async (req: AuthRequest, res: Respo
     const dailyLimit = settingsMap.ad_daily_limit || 5;
 
     // Check daily count
-    const [countRows] = await query(
+    const countRows = await query(
       `SELECT COUNT(*) as count FROM ad_reward_records WHERE user_id = ? AND DATE(created_at) = CURDATE()`,
       [req.user.id]
     ) as any[];
@@ -288,7 +288,7 @@ router.post('/ad-reward/claim', requireAuth, async (req: AuthRequest, res: Respo
       conn.release();
     }
     // Get new balance
-    const [balanceRows] = await query('SELECT balance FROM user_points WHERE user_id = ?', [req.user.id]) as any[];
+    const balanceRows = await query('SELECT balance FROM user_points WHERE user_id = ?', [req.user.id]) as any[];
     res.json({
       success: true,
       data: {

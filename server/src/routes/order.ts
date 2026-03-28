@@ -150,11 +150,11 @@ router.post('/points/signin', optionalAuth, async (req: AuthRequest, res: Respon
     if (!req.user) return res.status(401).json({ success: false, message: '请先登录' });
     const db = await import('../db');
     const today = new Date().toISOString().slice(0, 10);
-    const [existing] = await db.query(
+    const existing = await db.query(
       "SELECT id FROM points_log WHERE user_id = ? AND source = 'signin' AND DATE(created_at) = ?",
       [req.user.id, today]
     ) as any[];
-    if (existing) return res.status(400).json({ success: false, message: '今日已签到' });
+    if (existing.length > 0) return res.status(400).json({ success: false, message: '今日已签到' });
 
     const settings = await (await import('../models/Settings')).getPointsConfig();
     const balance = await UserPoints.addPoints(
