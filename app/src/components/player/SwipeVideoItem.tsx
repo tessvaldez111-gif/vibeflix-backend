@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import Video, { VideoRef, ResizeMode, OnLoadData, OnProgressData } from 'react-native-video';
 import { getMediaUrl } from '../../services/api';
-import { adRewardService } from '../../services/comment.service';
+import { adRewardService, commentService } from '../../services/comment.service';
 import { formatDuration, formatNumber } from '../../utils/format';
 import { COLORS } from '../../utils/constants';
 import { usePlayerStore, PLAYBACK_SPEEDS, type PlaybackSpeed } from '../../stores/playerStore';
@@ -79,6 +79,8 @@ const SwipeVideoItem: React.FC<Props> = memo(({
   const [showAdReward, setShowAdReward] = useState(false);
   const [danmakuInput, setDanmakuInput] = useState('');
   const [showDanmakuInput, setShowDanmakuInput] = useState(false);
+  // Local danmaku list for this episode (loaded from backend + user-sent)
+  const [localDanmakuList, setLocalDanmakuList] = useState<any[]>([]);
   const [wasPlayingBefore, setWasPlayingBefore] = useState(true);
   // Force remount key for Video component when re-activating
   const [videoKey, setVideoKey] = useState(0);
@@ -90,11 +92,9 @@ const SwipeVideoItem: React.FC<Props> = memo(({
   const {
     playbackSpeed,
     danmakuEnabled,
-    danmakuList,
     danmakuOpacity,
     setPlaybackSpeed,
     setDanmakuEnabled,
-    setDanmakuList,
   } = usePlayerStore();
 
   // Memoize video URI
@@ -122,12 +122,27 @@ const SwipeVideoItem: React.FC<Props> = memo(({
       setDuration(0);
       setIsLoading(true);
       setHasError(false);
+      setLocalDanmakuList([]); // Clear danmaku when switching episode
       const t = setTimeout(() => setIsPlaying(true), 500);
       return () => clearTimeout(t);
     } else {
       setIsPlaying(false);
     }
   }, [isActive]);
+
+  // Load danmaku from backend when episode becomes active
+  useEffect(() => {
+    if (!isActive || !data.drama_id || !data.id) return;
+    let cancelled = false;
+    commentService.getDanmaku(data.drama_id, data.id).then(list => {
+      if (!cancelled && Array.isArray(list)) {
+        setLocalDanmakuList(list);
+      }
+    }).catch(() => {
+      // Silently fail - danmaku is optional
+    });
+    return () => { cancelled = true; };
+  }, [isActive, data.drama_id, data.id]);
 
   // Seek when playback speed changes
   useEffect(() => {
@@ -236,7 +251,6 @@ const SwipeVideoItem: React.FC<Props> = memo(({
 
   const handleSendDanmaku = useCallback(() => {
     if (!danmakuInput.trim()) return;
-    // Add locally for instant display
     const newDanmaku = {
       id: -Date.now(),
       drama_id: data.drama_id,
@@ -248,7 +262,10 @@ const SwipeVideoItem: React.FC<Props> = memo(({
       position: 0,
       created_at: new Date().toISOString(),
     };
-    usePlayerStore.getState().setDanmakuList([...usePlayerStore.getState().danmakuList, newDanmaku]);
+    // Add to local list for instant display
+    setLocalDanmakuList(prev => [...prev, newDanmaku]);
+    // Also send to backend
+    commentService.sendDanmaku(data.drama_id, data.id, danmakuInput.trim()).catch(() => {});
     setDanmakuInput('');
     setShowDanmakuInput(false);
   }, [danmakuInput, data.drama_id, data.id, currentTime]);
@@ -305,7 +322,7 @@ const SwipeVideoItem: React.FC<Props> = memo(({
       {/* Danmaku overlay */}
       {isActive && (
         <DanmakuOverlay
-          danmakuList={danmakuList}
+          danmakuList={localDanmakuList}
           currentTime={currentTime}
           enabled={danmakuEnabled}
           opacity={danmakuOpacity}
@@ -548,7 +565,7 @@ const styles = StyleSheet.create({
   // Top
   topFade: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.45)' },
   topBar: { flexDirection: 'row', alignItems: 'center', paddingBottom: 10, paddingHorizontal: 12 },
-  epBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: 'rgba(103,80,164,0.85)' },
+  epBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: 'rgba(255,71,87,0.85)' },
   epBadgeText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
   titleBox: { flex: 1, marginLeft: 10 },
   dramaTitle: { color: '#FFF', fontSize: 16, fontWeight: '700' },
