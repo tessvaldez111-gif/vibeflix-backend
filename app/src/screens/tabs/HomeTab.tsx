@@ -1,130 +1,144 @@
-// ===== Home Tab (with pagination) =====
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator } from 'react-native';
+// ===== Home Tab — Feed Style (Hongguo-inspired) =====
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import {
+  View, Text, FlatList, TouchableOpacity, StyleSheet,
+  ActivityIndicator, Image, Dimensions,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useDramaStore } from '../../stores';
-import { DramaCard } from '../../components/drama/DramaCard';
-import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
+import { getMediaUrl } from '../../services/api';
 import { COLORS, SPACING } from '../../utils/constants';
+import { formatNumber } from '../../utils/format';
 import type { Drama } from '../../types';
+import { Ionicons } from '@expo/vector-icons';
 
-const ITEM_THRESHOLD = 5;
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 export const HomeTab: React.FC = () => {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const {
     recentDramas, genres, isLoadingDramas, isLoadingMore, homeHasMore,
-    loadHomeData, loadMoreHome, filterByGenre, loadMoreGenre,
+    loadHomeData, loadMoreHome,
   } = useDramaStore();
-  const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
 
   useEffect(() => {
     loadHomeData();
   }, []);
 
-  const onSearchPress = () => {
-    navigation.navigate('ExploreTab' as never);
-  };
-
-  const onGenrePress = useCallback(async (genre: string | null) => {
-    setSelectedGenre(genre);
-    if (genre) {
-      await filterByGenre(genre);
-    } else {
-      loadHomeData();
-    }
-  }, [filterByGenre, loadHomeData]);
-
-  // Determine which data source to display
-  const displayDramas = selectedGenre
-    ? useDramaStore.getState().genreResults
-    : recentDramas;
-  const hasMore = selectedGenre
-    ? useDramaStore.getState().genreHasMore
-    : homeHasMore;
-
   const onLoadMore = useCallback(() => {
     if (isLoadingDramas || isLoadingMore) return;
-    if (selectedGenre) {
-      loadMoreGenre();
-    } else {
-      loadMoreHome();
-    }
-  }, [selectedGenre, loadMoreHome, loadMoreGenre, isLoadingDramas, isLoadingMore]);
+    loadMoreHome();
+  }, [loadMoreHome, isLoadingDramas, isLoadingMore]);
 
-  const renderItem = ({ item }: { item: Drama }) => (
-    <DramaCard drama={item} />
+  const onSearchPress = () => {
+    navigation.navigate('TheaterTab' as never);
+  };
+
+  const onPressDrama = (drama: Drama) => {
+    (navigation.navigate as any)('SwipePlayer', { dramaId: drama.id });
+  };
+
+  const renderItem = ({ item, index }: { item: Drama; index: number }) => (
+    <TouchableOpacity
+      style={styles.feedCard}
+      activeOpacity={0.95}
+      onPress={() => onPressDrama(item)}
+    >
+      {/* Full-screen cover */}
+      <Image
+        source={{ uri: getMediaUrl(item.cover_image) }}
+        style={styles.cover}
+        defaultSource={require('../../../assets/icon.png')}
+      />
+
+      {/* Gradient overlay */}
+      <View style={styles.gradient} />
+
+      {/* Top bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity onPress={onSearchPress} style={styles.searchBar}>
+          <Ionicons name="search" size={16} color={COLORS.onSurfaceVariant} />
+          <Text style={styles.searchText}>{t('search_placeholder')}</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Bottom info */}
+      <View style={styles.bottomInfo}>
+        <Text style={styles.dramaTitle} numberOfLines={2}>{item.title}</Text>
+        <View style={styles.metaRow}>
+          <Text style={styles.genreTag}>{item.genre}</Text>
+          <Text style={styles.metaText}>
+            {item.episode_count} {t('ep_abbr')} · {formatNumber(item.view_count)} {t('views_abbr')}
+          </Text>
+        </View>
+        {/* Action buttons (right side) */}
+        <View style={styles.actionRow}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => onPressDrama(item)}>
+            <Ionicons name="heart-outline" size={22} color="#FFF" />
+            <Text style={styles.actionText}>{formatNumber(item.collect_count)}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionBtn}>
+            <Ionicons name="chatbubble-outline" size={22} color="#FFF" />
+            <Text style={styles.actionText}>{formatNumber(item.like_count)}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionBtn}>
+            <Ionicons name="share-outline" size={22} color="#FFF" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Play indicator */}
+      <View style={styles.playIndicator}>
+        <Ionicons name="play" size={14} color="#FFF" />
+      </View>
+
+      {/* Episode count badge */}
+      <View style={styles.epBadge}>
+        <Text style={styles.epBadgeText}>{item.episode_count} {t('ep_abbr')}</Text>
+      </View>
+    </TouchableOpacity>
   );
 
-  const keyExtractor = (item: Drama) => `drama-${item.id}`;
-
   const renderFooter = () => {
-    if (!hasMore) return null;
+    if (!homeHasMore) return null;
     return (
       <View style={styles.footer}>
-        <ActivityIndicator size="small" color={COLORS.onSurfaceVariant} />
+        <ActivityIndicator size="small" color={COLORS.onSurface} />
       </View>
     );
   };
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.logo}>{t('app_name')}</Text>
-      </View>
+      {/* Status bar spacer */}
+      <View style={styles.statusSpacer} />
 
-      {/* Search */}
-      <TextInput
-        style={styles.search}
-        placeholder={t('search_placeholder')}
-        placeholderTextColor={COLORS.onSurfaceVariant}
-        editable={false}
-        onPressIn={onSearchPress}
-      />
-
-      {/* Genre Tags — hide while loading */}
-      {genres.length > 0 && (
-        <View style={styles.genresRow}>
-          <TouchableOpacity
-            style={[styles.genreChip, !selectedGenre && styles.genreChipActive]}
-            onPress={() => onGenrePress(null)}
-          >
-            <Text style={[styles.genreChipText, !selectedGenre && styles.genreChipTextActive]}>{t('all')}</Text>
-          </TouchableOpacity>
-          {genres.slice(0, 6).map((genre) => (
-            <TouchableOpacity
-              key={genre}
-              style={[styles.genreChip, styles.genreChipMargin, selectedGenre === genre && styles.genreChipActive]}
-              onPress={() => onGenrePress(genre)}
-            >
-              <Text style={[styles.genreChipText, selectedGenre === genre && styles.genreChipTextActive]}>{genre}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      {/* Drama List with Infinite Scroll */}
       {isLoadingDramas ? (
-        <LoadingSpinner />
+        <View style={styles.loading}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
       ) : (
         <FlatList
-          data={displayDramas}
+          data={recentDramas}
           renderItem={renderItem}
-          keyExtractor={keyExtractor}
-          numColumns={2}
-          contentContainerStyle={styles.list}
+          keyExtractor={(item) => `feed-${item.id}`}
+          pagingEnabled
           showsVerticalScrollIndicator={false}
           onEndReached={onLoadMore}
-          onEndReachedThreshold={0.3}
+          onEndReachedThreshold={0.5}
           ListFooterComponent={renderFooter}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyText}>{t('no_dramas')}</Text>
             </View>
           }
+          getItemLayout={(data, index) => ({
+            length: SCREEN_H,
+            offset: SCREEN_H * index,
+            index,
+          })}
         />
       )}
     </View>
@@ -136,64 +150,135 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  header: {
-    paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.lg,
-    paddingBottom: SPACING.sm,
+  statusSpacer: {
+    height: 44,
   },
-  logo: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: COLORS.primaryLight,
-    letterSpacing: 1,
+  loading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  search: {
-    marginHorizontal: SPACING.md,
-    marginBottom: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm + 2,
-    borderRadius: 12,
-    backgroundColor: COLORS.surface,
-    color: COLORS.onSurfaceVariant,
-    fontSize: 15,
-    borderWidth: 1,
-    borderColor: COLORS.outline,
+  // Feed card (full-screen)
+  feedCard: {
+    width: SCREEN_W,
+    height: SCREEN_H - 44, // minus status spacer
+    position: 'relative',
+    backgroundColor: '#000',
   },
-  genresRow: {
+  cover: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  gradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 280,
+    backgroundColor: 'transparent',
+    // Use opacity-based gradient since LinearGradient may not be available
+  },
+  // Top bar
+  topBar: {
+    position: 'absolute',
+    top: 8,
+    left: SPACING.md,
+    right: SPACING.md,
+  },
+  searchBar: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.md,
-  },
-  genreChipMargin: {
-    marginRight: SPACING.sm,
-    marginBottom: SPACING.sm,
-  },
-  genreChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     borderRadius: 20,
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.outline,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    gap: 8,
   },
-  genreChipActive: {
+  searchText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 14,
+  },
+  // Bottom info
+  bottomInfo: {
+    position: 'absolute',
+    bottom: 20,
+    left: SPACING.md,
+    right: 70,
+  },
+  dramaTitle: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+    marginBottom: 8,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  genreTag: {
     backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '600',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    overflow: 'hidden',
   },
-  genreChipText: {
-    color: COLORS.onSurface,
-    fontSize: 13,
+  metaText: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
   },
-  genreChipTextActive: {
-    color: COLORS.onPrimary,
+  // Action buttons (right column)
+  actionRow: {
+    position: 'absolute',
+    bottom: 20,
+    right: SPACING.md,
+    gap: 20,
   },
-  list: {
-    paddingHorizontal: SPACING.md,
-    paddingBottom: 80,
+  actionBtn: {
+    alignItems: 'center',
+    gap: 2,
   },
+  actionText: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 11,
+  },
+  // Play indicator
+  playIndicator: {
+    position: 'absolute',
+    top: '45%',
+    left: '45%',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // Episode badge
+  epBadge: {
+    position: 'absolute',
+    top: '45%',
+    right: SPACING.md,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  epBadgeText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  // Misc
   footer: {
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.lg,
     alignItems: 'center',
   },
   empty: {

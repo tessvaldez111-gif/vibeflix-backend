@@ -1,9 +1,12 @@
 {
   "app_name": "DramaFlix",
   "tab_home": "首页",
+  "tab_theater": "剧场",
+  "tab_follow": "追剧",
+  "tab_rewards": "福利",
+  "tab_profile": "我的",
   "tab_explore": "发现",
   "tab_wallet": "钱包",
-  "tab_profile": "我的",
   "search_placeholder": "搜索短剧...",
   "login": "登录",
   "register": "注册",
@@ -128,5 +131,19 @@
   "ep_abbr": "集",
   "views_abbr": "次播放",
   "success": "成功",
-  "logout_confirm": "确定要退出登录吗？"
+  "logout_confirm": "确定要退出登录吗？",
+
+  "tab_follow": "追剧",
+  "tab_theater": "剧场",
+  "tab_rewards": "福利",
+  "no_follow_title": "暂无追剧",
+  "no_follow_hint": "追剧后可以第一时间收到更新通知，快速继续观看",
+  "go_explore": "去发现好剧",
+  "continue_watch": "继续看",
+  "status_completed": "已完结",
+  "status_ongoing": "连载中",
+  "hot_recommend": "热门推荐",
+  "new_release": "新剧首发",
+  "trending": "热播榜",
+  "free_tag": "免费"
 }

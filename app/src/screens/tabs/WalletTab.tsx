@@ -1,8 +1,8 @@
-// ===== Wallet Tab =====
+// ===== Rewards Tab (福利) — Hongguo-inspired =====
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  Alert, Linking, Modal, ActivityIndicator,
+  Linking, Modal, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useWalletStore, useAuthStore } from '../../stores';
@@ -12,10 +12,14 @@ import { COLORS, SPACING } from '../../utils/constants';
 import { formatPrice, formatNumber } from '../../utils/format';
 import { paymentService } from '../../services';
 import type { RechargePackage } from '../../types';
+import { Ionicons } from '@expo/vector-icons';
 
 export const WalletTab: React.FC = () => {
   const { t } = useTranslation();
-  const { points, packages, todaySignedIn, isLoading, loadPoints, loadPackages, signin, resetAfterRecharge } = useWalletStore();
+  const {
+    points, packages, todaySignedIn, isLoading,
+    loadPoints, loadPackages, signin,
+  } = useWalletStore();
   const { isAuthenticated } = useAuthStore();
   const toast = useToast();
   const [isPaying, setIsPaying] = useState(false);
@@ -65,65 +69,132 @@ export const WalletTab: React.FC = () => {
     }
   };
 
-  const renderPackage = ({ item }: { item: RechargePackage }) => (
-    <TouchableOpacity
-      style={[styles.packageCard, item.is_hot && styles.packageHot]}
-      onPress={() => onRecharge(item)}
-      disabled={isPaying}
-    >
-      {item.is_hot && <View style={styles.hotBadge}><Text style={styles.hotText}>{t('hot')}</Text></View>}
-      <Text style={styles.packageName}>{item.name}</Text>
-      <Text style={styles.packagePoints}>
-        {t('points_count', { count: formatNumber(item.points + item.bonus_points) })}
-      </Text>
-      {item.bonus_points > 0 && (
-        <Text style={styles.packageBonus}>{t('bonus_count', { count: formatNumber(item.bonus_points) })}</Text>
-      )}
-      <Text style={styles.packagePrice}>{formatPrice(item.price)}</Text>
-    </TouchableOpacity>
-  );
-
   if (!isAuthenticated) {
     return (
       <View style={[styles.container, styles.center]}>
-        <Text style={styles.loginHint}>{t('login_hint_wallet')}</Text>
+        <Text style={styles.loginHint}>{t('login_to_continue')}</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{t('tab_wallet')}</Text>
-
-      {/* Points Balance */}
-      <View style={styles.balanceCard}>
-        <Text style={styles.balanceLabel}>{t('points_balance')}</Text>
-        <Text style={styles.balanceValue}>{points ? formatNumber(points.balance) : '---'}</Text>
-        <TouchableOpacity
-          style={[styles.signinBtn, todaySignedIn && styles.signinBtnDone]}
-          onPress={onSignin}
-          disabled={todaySignedIn || isPaying}
-        >
-          <Text style={styles.signinText}>
-            {todaySignedIn ? t('signed_in_today') : t('daily_signin')}
-          </Text>
-        </TouchableOpacity>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>{t('tab_rewards')}</Text>
       </View>
 
-      {/* Recharge Packages */}
-      <Text style={styles.sectionTitle}>{t('recharge')}</Text>
-      {isLoading ? (
-        <LoadingSpinner />
-      ) : (
-        <FlatList
-          data={packages}
-          renderItem={renderPackage}
-          keyExtractor={(item) => `pkg-${item.id}`}
-          numColumns={2}
-          contentContainerStyle={styles.packagesList}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Points Balance Card */}
+        <View style={styles.balanceCard}>
+          <Text style={styles.balanceLabel}>{t('points_balance')}</Text>
+          <Text style={styles.balanceValue}>
+            {points ? formatNumber(points.balance) : '---'}
+          </Text>
+          <TouchableOpacity
+            style={[styles.signinBtn, todaySignedIn && styles.signinBtnDone]}
+            onPress={onSignin}
+            disabled={todaySignedIn || isPaying}
+          >
+            <Ionicons
+              name={todaySignedIn ? "checkmark-circle" : "calendar"}
+              size={18}
+              color={todaySignedIn ? COLORS.success : COLORS.onPrimary}
+              style={{ marginRight: 6 }}
+            />
+            <Text style={styles.signinText}>
+              {todaySignedIn ? t('signed_in_today') : t('daily_signin')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Task Center */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            <Ionicons name="list" size={18} color={COLORS.primary} />
+            {'  '}{t('task_center') || 'Task Center'}
+          </Text>
+          <View style={styles.taskList}>
+            <View style={styles.taskItem}>
+              <View style={styles.taskLeft}>
+                <Ionicons name="play-circle" size={24} color={COLORS.secondary} />
+                <View style={styles.taskInfo}>
+                  <Text style={styles.taskName}>{t('task_watch') || 'Watch Drama'}</Text>
+                  <Text style={styles.taskReward}>+10 {t('points')}</Text>
+                </View>
+              </View>
+              <TouchableOpacity style={styles.taskBtn}>
+                <Text style={styles.taskBtnText}>{t('go') || 'Go'}</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.taskItem}>
+              <View style={styles.taskLeft}>
+                <Ionicons name="share-social" size={24} color={COLORS.secondary} />
+                <View style={styles.taskInfo}>
+                  <Text style={styles.taskName}>{t('task_share') || 'Share Drama'}</Text>
+                  <Text style={styles.taskReward}>+10 {t('points')}</Text>
+                </View>
+              </View>
+              <TouchableOpacity style={styles.taskBtn}>
+                <Text style={styles.taskBtnText}>{t('go') || 'Go'}</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.taskItem}>
+              <View style={styles.taskLeft}>
+                <Ionicons name="megaphone" size={24} color={COLORS.secondary} />
+                <View style={styles.taskInfo}>
+                  <Text style={styles.taskName}>{t('task_ad') || 'Watch Ad'}</Text>
+                  <Text style={styles.taskReward}>+5 {t('points')}</Text>
+                </View>
+              </View>
+              <TouchableOpacity style={styles.taskBtn}>
+                <Text style={styles.taskBtnText}>{t('go') || 'Go'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {/* Recharge Packages */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            <Ionicons name="diamond" size={18} color={COLORS.gold} />
+            {'  '}{t('recharge')}
+          </Text>
+          {isLoading ? (
+            <LoadingSpinner />
+          ) : (
+            <View style={styles.packagesGrid}>
+              {packages.map((pkg) => (
+                <TouchableOpacity
+                  key={`pkg-${pkg.id}`}
+                  style={[styles.packageCard, pkg.is_hot && styles.packageHot]}
+                  onPress={() => onRecharge(pkg)}
+                  disabled={isPaying}
+                >
+                  {pkg.is_hot && (
+                    <View style={styles.hotBadge}>
+                      <Text style={styles.hotText}>{t('hot')}</Text>
+                    </View>
+                  )}
+                  <Text style={styles.packageName}>{pkg.name}</Text>
+                  <Text style={styles.packagePoints}>
+                    {t('points_count', { count: formatNumber(pkg.points + pkg.bonus_points) })}
+                  </Text>
+                  {pkg.bonus_points > 0 && (
+                    <Text style={styles.packageBonus}>
+                      {t('bonus_count', { count: formatNumber(pkg.bonus_points) })}
+                    </Text>
+                  )}
+                  <Text style={styles.packagePrice}>{formatPrice(pkg.price)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+      </ScrollView>
 
       {/* Payment Confirm Modal */}
       <Modal visible={showConfirm} transparent animationType="fade" onRequestClose={() => setShowConfirm(false)}>
@@ -155,7 +226,7 @@ export const WalletTab: React.FC = () => {
       {/* Payment Loading */}
       {isPaying && (
         <View style={styles.payingOverlay}>
-          <ActivityIndicator size="large" color={COLORS.primaryLight} />
+          <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.payingText}>{t('processing_payment')}</Text>
         </View>
       )}
@@ -166,15 +237,22 @@ export const WalletTab: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   center: { justifyContent: 'center', alignItems: 'center' },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: COLORS.onSurface,
+  scrollContent: {
+    paddingBottom: 100,
+  },
+  header: {
     paddingHorizontal: SPACING.md,
     paddingTop: SPACING.lg,
     paddingBottom: SPACING.sm,
   },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: COLORS.onSurface,
+  },
   loginHint: { color: COLORS.onSurfaceVariant, fontSize: 16 },
+
+  // Balance card
   balanceCard: {
     margin: SPACING.md,
     padding: SPACING.lg,
@@ -183,16 +261,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   balanceLabel: { color: COLORS.onSurfaceVariant, fontSize: 14, marginBottom: 4 },
-  balanceValue: { color: COLORS.primaryLight, fontSize: 42, fontWeight: 'bold' },
+  balanceValue: { color: COLORS.primary, fontSize: 48, fontWeight: 'bold' },
   signinBtn: {
     marginTop: SPACING.md,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
+    paddingHorizontal: 28,
+    paddingVertical: 12,
     borderRadius: 24,
     backgroundColor: COLORS.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  signinBtnDone: { backgroundColor: COLORS.secondaryContainer },
+  signinBtnDone: { backgroundColor: COLORS.surfaceLight },
   signinText: { color: COLORS.onPrimary, fontSize: 15, fontWeight: '600' },
+
+  // Section
+  section: {
+    marginTop: SPACING.sm,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
@@ -200,10 +285,61 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     marginBottom: SPACING.sm,
   },
-  packagesList: { paddingHorizontal: SPACING.md, paddingBottom: 100 },
-  packageCard: {
+
+  // Task center
+  taskList: {
+    marginHorizontal: SPACING.md,
+    borderRadius: 12,
+    backgroundColor: COLORS.surface,
+    overflow: 'hidden',
+  },
+  taskItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: SPACING.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.outline,
+  },
+  taskLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  taskInfo: {
     flex: 1,
-    margin: SPACING.xs,
+  },
+  taskName: {
+    color: COLORS.onSurface,
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  taskReward: {
+    color: COLORS.gold,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  taskBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary,
+  },
+  taskBtnText: {
+    color: COLORS.onPrimary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  // Packages
+  packagesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: SPACING.md,
+  },
+  packageCard: {
+    width: '47%',
+    margin: '1.5%',
     padding: SPACING.md,
     borderRadius: 12,
     backgroundColor: COLORS.surface,
@@ -224,9 +360,11 @@ const styles = StyleSheet.create({
   },
   hotText: { color: '#000', fontSize: 10, fontWeight: 'bold' },
   packageName: { color: COLORS.onSurface, fontSize: 14, fontWeight: '600', marginBottom: 4 },
-  packagePoints: { color: COLORS.primaryLight, fontSize: 18, fontWeight: 'bold' },
+  packagePoints: { color: COLORS.primary, fontSize: 18, fontWeight: 'bold' },
   packageBonus: { color: COLORS.gold, fontSize: 12, marginTop: 2 },
   packagePrice: { color: COLORS.onSurfaceVariant, fontSize: 14, marginTop: 4 },
+
+  // Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -243,7 +381,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: { color: COLORS.onSurface, fontSize: 20, fontWeight: 'bold', marginBottom: SPACING.md },
   modalPkgName: { color: COLORS.onSurface, fontSize: 18, fontWeight: '600' },
-  modalPoints: { color: COLORS.primaryLight, fontSize: 24, fontWeight: 'bold', marginVertical: 4 },
+  modalPoints: { color: COLORS.primary, fontSize: 24, fontWeight: 'bold', marginVertical: 4 },
   modalPrice: { color: COLORS.gold, fontSize: 20, fontWeight: 'bold', marginBottom: SPACING.md },
   modalHint: { color: COLORS.onSurfaceVariant, fontSize: 13, textAlign: 'center', marginBottom: SPACING.lg, lineHeight: 18 },
   modalActions: { flexDirection: 'row', width: '100%' },

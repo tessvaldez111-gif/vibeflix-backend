@@ -1,15 +1,18 @@
-// ===== Profile Tab =====
+// ===== Profile Tab (我的) — Hongguo-inspired =====
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
-import { useAuthStore } from '../../stores';
+import { useAuthStore, useWalletStore } from '../../stores';
 import { COLORS, SPACING } from '../../utils/constants';
+import { formatNumber } from '../../utils/format';
+import { Ionicons } from '@expo/vector-icons';
 
 export const ProfileTab: React.FC = () => {
   const { t } = useTranslation();
   const navigation = useNavigation();
   const { user, isAuthenticated, logout } = useAuthStore();
+  const { points } = useWalletStore();
 
   if (!isAuthenticated || !user) {
     return (
@@ -23,10 +26,55 @@ export const ProfileTab: React.FC = () => {
     );
   }
 
-  const menuItems = [
-    { icon: 'clock-outline', label: t('watch_history'), screen: 'WatchHistory' },
-    { icon: 'heart-outline', label: t('my_favorites'), screen: 'Favorites' },
-    { icon: 'cog-outline', label: t('settings'), screen: 'Settings' },
+  const menuSections = [
+    {
+      items: [
+        {
+          icon: 'time-outline',
+          iconColor: '#4FC3F7',
+          label: t('watch_history'),
+          screen: 'WatchHistory',
+        },
+        {
+          icon: 'heart-outline',
+          iconColor: '#FF6B81',
+          label: t('my_favorites'),
+          screen: 'Favorites',
+        },
+      ],
+    },
+    {
+      items: [
+        {
+          icon: 'notifications-outline',
+          iconColor: '#FFA502',
+          label: t('messages') || 'Messages',
+          screen: null,
+        },
+        {
+          icon: 'download-outline',
+          iconColor: '#2ED573',
+          label: t('offline_cache') || 'Offline Cache',
+          screen: null,
+        },
+      ],
+    },
+    {
+      items: [
+        {
+          icon: 'help-circle-outline',
+          iconColor: '#A29BFE',
+          label: t('help_feedback') || 'Help & Feedback',
+          screen: null,
+        },
+        {
+          icon: 'cog-outline',
+          iconColor: '#999',
+          label: t('settings'),
+          screen: 'Settings',
+        },
+      ],
+    },
   ];
 
   const onLogout = async () => {
@@ -35,39 +83,68 @@ export const ProfileTab: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{t('tab_profile')}</Text>
-
-      {/* User Info Card */}
-      <View style={styles.userCard}>
-        <Image
-          source={{ uri: user.avatar || undefined }}
-          style={styles.avatar}
-        />
-        <View style={styles.userInfo}>
-          <Text style={styles.nickname}>{user.nickname || user.username}</Text>
-          <Text style={styles.username}>@{user.username}</Text>
-        </View>
-      </View>
-
-      {/* Menu Items */}
-      <View style={styles.menu}>
-        {menuItems.map((item) => (
-          <TouchableOpacity
-            key={item.screen}
-            style={styles.menuItem}
-            onPress={() => navigation.navigate(item.screen as never)}
-          >
-            <Text style={styles.menuIcon}>{item.icon}</Text>
-            <Text style={styles.menuLabel}>{item.label}</Text>
-            <Text style={styles.menuArrow}>{'>'}</Text>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Profile Header */}
+        <View style={styles.profileHeader}>
+          <Image
+            source={{ uri: user.avatar || undefined }}
+            style={styles.avatar}
+          />
+          <View style={styles.profileInfo}>
+            <Text style={styles.nickname}>{user.nickname || user.username}</Text>
+            <Text style={styles.username}>@{user.username}</Text>
+          </View>
+          <TouchableOpacity style={styles.editBtn}>
+            <Ionicons name="create-outline" size={20} color={COLORS.onSurface} />
           </TouchableOpacity>
-        ))}
-      </View>
+        </View>
 
-      {/* Logout */}
-      <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
-        <Text style={styles.logoutText}>{t('sign_out')}</Text>
-      </TouchableOpacity>
+        {/* Stats row */}
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{points ? formatNumber(points.balance) : '0'}</Text>
+            <Text style={styles.statLabel}>{t('points')}</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>0</Text>
+            <Text style={styles.statLabel}>{t('watch_history') || 'History'}</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>0</Text>
+            <Text style={styles.statLabel}>{t('my_favorites') || 'Favorites'}</Text>
+          </View>
+        </View>
+
+        {/* Menu Sections */}
+        {menuSections.map((section, sIdx) => (
+          <View key={sIdx} style={styles.menuSection}>
+            {section.items.map((item) => (
+              <TouchableOpacity
+                key={item.label}
+                style={styles.menuItem}
+                onPress={() => item.screen && navigation.navigate(item.screen as never)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.menuIconBox, { backgroundColor: item.iconColor + '22' }]}>
+                  <Ionicons name={item.icon} size={22} color={item.iconColor} />
+                </View>
+                <Text style={styles.menuLabel}>{item.label}</Text>
+                <Ionicons name="chevron-forward" size={18} color={COLORS.outline} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        ))}
+
+        {/* Logout */}
+        <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
+          <Text style={styles.logoutText}>{t('sign_out')}</Text>
+        </TouchableOpacity>
+
+        {/* Version */}
+        <Text style={styles.version}>DramaFlix v1.0.0</Text>
+      </ScrollView>
     </View>
   );
 };
@@ -75,14 +152,6 @@ export const ProfileTab: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   center: { justifyContent: 'center', alignItems: 'center' },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: COLORS.onSurface,
-    paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.lg,
-    paddingBottom: SPACING.sm,
-  },
   welcomeText: { color: COLORS.onSurface, fontSize: 22, fontWeight: 'bold', marginBottom: 8 },
   loginHint: { color: COLORS.onSurfaceVariant, fontSize: 15, textAlign: 'center', maxWidth: 250, marginBottom: SPACING.lg },
   signinBtn: {
@@ -92,21 +161,73 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
   signinBtnText: { color: COLORS.onPrimary, fontSize: 16, fontWeight: '600' },
-  userCard: {
+
+  // Profile header
+  profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    margin: SPACING.md,
-    padding: SPACING.md,
-    borderRadius: 16,
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.md,
+  },
+  avatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: COLORS.surface,
   },
-  avatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: COLORS.secondaryContainer },
-  userInfo: { marginLeft: SPACING.md, flex: 1 },
-  nickname: { color: COLORS.onSurface, fontSize: 20, fontWeight: '600' },
-  username: { color: COLORS.onSurfaceVariant, fontSize: 14, marginTop: 2 },
-  menu: {
+  profileInfo: {
+    flex: 1,
+    marginLeft: SPACING.md,
+  },
+  nickname: {
+    color: COLORS.onSurface,
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  username: {
+    color: COLORS.onSurfaceVariant,
+    fontSize: 13,
+    marginTop: 2,
+  },
+  editBtn: {
+    padding: SPACING.sm,
+  },
+
+  // Stats row
+  statsRow: {
+    flexDirection: 'row',
     marginHorizontal: SPACING.md,
-    borderRadius: 16,
+    padding: SPACING.md,
+    borderRadius: 12,
+    backgroundColor: COLORS.surface,
+    marginBottom: SPACING.md,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statValue: {
+    color: COLORS.onSurface,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  statLabel: {
+    color: COLORS.onSurfaceVariant,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: COLORS.outline,
+    marginVertical: 4,
+  },
+
+  // Menu sections
+  menuSection: {
+    marginHorizontal: SPACING.md,
+    marginBottom: SPACING.sm,
+    borderRadius: 12,
     backgroundColor: COLORS.surface,
     overflow: 'hidden',
   },
@@ -117,17 +238,37 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.outline,
   },
-  menuIcon: { fontSize: 20, marginRight: SPACING.md, width: 28 },
-  menuLabel: { flex: 1, color: COLORS.onSurface, fontSize: 16 },
-  menuArrow: { color: COLORS.onSurfaceVariant, fontSize: 16 },
+  menuIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.md,
+  },
+  menuLabel: {
+    flex: 1,
+    color: COLORS.onSurface,
+    fontSize: 15,
+  },
+
+  // Logout
   logoutBtn: {
     margin: SPACING.lg,
     padding: SPACING.md,
     borderRadius: 12,
     backgroundColor: COLORS.surface,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.error,
   },
-  logoutText: { color: COLORS.error, fontSize: 16, fontWeight: '600' },
+  logoutText: {
+    color: COLORS.error,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  version: {
+    textAlign: 'center',
+    color: COLORS.onSurfaceVariant,
+    fontSize: 12,
+    paddingBottom: SPACING.xl,
+  },
 });

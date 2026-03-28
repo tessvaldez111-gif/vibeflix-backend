@@ -15,23 +15,28 @@ export const MIN_PROGRESS_SAVE = 5; // don't save if < 5s watched
 export const FREE_EPISODES_DEFAULT = 3;
 export const DAILY_SIGNIN_POINTS_DEFAULT = 10;
 
-// Theme Colors (Material 3 inspired)
+// Theme Colors (Hongguo-inspired warm palette)
 export const COLORS = {
-  primary: '#6750A4',
-  primaryLight: '#D0BCFF',
+  primary: '#FF4757',        // Red-500 (Hongguo red)
+  primaryLight: '#FF6B81',   // Red-400 (lighter accent)
+  primaryDark: '#E8414F',    // Red-600 (deeper)
   onPrimary: '#FFFFFF',
-  secondary: '#625B71',
-  secondaryContainer: '#E8DEF8',
-  background: '#1C1B1F',
-  surface: '#2B2930',
-  onSurface: '#E6E1E5',
-  onSurfaceVariant: '#CAC4D0',
-  outline: '#938F99',
-  error: '#F2B8B5',
-  onError: '#601410',
-  success: '#7DDC88',
-  warning: '#FFD666',
-  gold: '#FFB800',
+  secondary: '#FF8C42',      // Orange-500 (warm accent)
+  secondaryContainer: '#2D2420',
+  background: '#0D0D0D',     // Near-black
+  surface: '#1A1A1A',        // Dark surface
+  surfaceLight: '#252525',   // Lighter surface for cards
+  onSurface: '#F5F5F5',      // Near-white text
+  onSurfaceVariant: '#999999', // Muted text
+  outline: '#333333',        // Subtle border
+  error: '#FF4757',
+  onError: '#FFFFFF',
+  success: '#2ED573',
+  warning: '#FFA502',
+  gold: '#FFD700',
+  tabBarBg: '#111111',       // Tab bar background
+  tabActive: '#FF4757',      // Active tab color
+  tabInactive: '#666666',    // Inactive tab color
 };
 
 // Theme Spacing

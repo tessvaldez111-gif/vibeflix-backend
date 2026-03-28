@@ -76,7 +76,7 @@ export const ExploreTab: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{t('tab_explore')}</Text>
+      <Text style={styles.title}>{t('tab_theater')}</Text>
 
       {/* Search Input */}
       <TextInput

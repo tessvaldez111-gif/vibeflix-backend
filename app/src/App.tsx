@@ -12,7 +12,8 @@ import { useAuthStore } from './stores';
 
 // Tab Screens
 import { HomeTab } from './screens/tabs/HomeTab';
-import { ExploreTab } from './screens/tabs/ExploreTab';
+import { ExploreTab as TheaterTab } from './screens/tabs/ExploreTab';
+import { FollowTab } from './screens/tabs/FollowTab';
 import { WalletTab } from './screens/tabs/WalletTab';
 import { ProfileTab } from './screens/tabs/ProfileTab';
 
@@ -36,7 +37,8 @@ import { ToastOverlay } from './components/ui/ToastOverlay';
 // ===== Tab Navigator =====
 type TabParamList = {
   HomeTab: undefined;
-  ExploreTab: undefined;
+  TheaterTab: undefined;
+  FollowTab: undefined;
   WalletTab: undefined;
   ProfileTab: undefined;
 };
@@ -50,16 +52,21 @@ const TabNavigator = () => {
     screenOptions={{
       headerShown: false,
       tabBarStyle: {
-        backgroundColor: COLORS.surface,
+        backgroundColor: COLORS.tabBarBg,
         borderTopColor: COLORS.outline,
-        borderTopWidth: 1,
-        height: 60,
-        paddingBottom: 8,
-        paddingTop: 4,
+        borderTopWidth: 0.5,
+        height: 56,
+        paddingBottom: 4,
+        paddingTop: 2,
+        elevation: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
       },
-      tabBarActiveTintColor: COLORS.primaryLight,
-      tabBarInactiveTintColor: COLORS.onSurfaceVariant,
-      tabBarLabelStyle: { fontSize: 12 },
+      tabBarActiveTintColor: COLORS.tabActive,
+      tabBarInactiveTintColor: COLORS.tabInactive,
+      tabBarLabelStyle: { fontSize: 10, fontWeight: '500' },
     }}
   >
     <Tab.Screen
@@ -73,12 +80,22 @@ const TabNavigator = () => {
       }}
     />
     <Tab.Screen
-      name="ExploreTab"
-      component={ExploreTab}
+      name="TheaterTab"
+      component={TheaterTab}
       options={{
-        tabBarLabel: t('tab_explore'),
+        tabBarLabel: t('tab_theater'),
         tabBarIcon: ({ color, size }) => (
-          <Ionicons name="compass" size={size} color={color} />
+          <Ionicons name="grid" size={size} color={color} />
+        ),
+      }}
+    />
+    <Tab.Screen
+      name="FollowTab"
+      component={FollowTab}
+      options={{
+        tabBarLabel: t('tab_follow'),
+        tabBarIcon: ({ color, size }) => (
+          <Ionicons name="heart" size={size} color={color} />
         ),
       }}
     />
@@ -86,9 +103,9 @@ const TabNavigator = () => {
       name="WalletTab"
       component={WalletTab}
       options={{
-        tabBarLabel: t('tab_wallet'),
+        tabBarLabel: t('tab_rewards'),
         tabBarIcon: ({ color, size }) => (
-          <Ionicons name="wallet" size={size} color={color} />
+          <Ionicons name="gift" size={size} color={color} />
         ),
       }}
     />

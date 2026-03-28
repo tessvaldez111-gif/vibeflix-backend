@@ -1,9 +1,12 @@
 {
   "app_name": "DramaFlix",
   "tab_home": "Home",
+  "tab_theater": "Theater",
+  "tab_follow": "Follow",
+  "tab_rewards": "Rewards",
+  "tab_profile": "Me",
   "tab_explore": "Explore",
   "tab_wallet": "Wallet",
-  "tab_profile": "Profile",
   "search_placeholder": "Search dramas...",
   "login": "Sign In",
   "register": "Sign Up",
@@ -133,5 +136,19 @@
   "ep_abbr": "ep",
   "views_abbr": "views",
   "success": "Success",
-  "logout_confirm": "Are you sure you want to sign out?"
+  "logout_confirm": "Are you sure you want to sign out?",
+
+  "tab_follow": "Follow",
+  "tab_theater": "Theater",
+  "tab_rewards": "Rewards",
+  "no_follow_title": "No Followed Dramas",
+  "no_follow_hint": "Follow dramas to get update notifications and continue watching easily",
+  "go_explore": "Explore Dramas",
+  "continue_watch": "Continue",
+  "status_completed": "Completed",
+  "status_ongoing": "Ongoing",
+  "hot_recommend": "Hot Recommend",
+  "new_release": "New Release",
+  "trending": "Trending",
+  "free_tag": "FREE"
 }
