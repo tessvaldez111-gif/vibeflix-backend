@@ -56,6 +56,7 @@ export const SwipePlayerScreen: React.FC = () => {
 
   const [likedDramas, setLikedDramas] = useState<Set<number>>(new Set());
   const [favoritedDramas, setFavoritedDramas] = useState<Set<number>>(new Set());
+  const [dramaStats, setDramaStats] = useState<Record<number, { like_count: number; collect_count: number; comment_count: number; share_count: number }>>({});
 
   const loadedDramaIds = useRef<Set<number>>(new Set());
   const dramaQueue = useRef<number[]>([]);
@@ -109,6 +110,10 @@ export const SwipePlayerScreen: React.FC = () => {
         }).catch(() => {});
       }
 
+      interactionService.getDramaStats(dramaId).then(stats => {
+        setDramaStats(prev => ({ ...prev, [dramaId]: stats }));
+      }).catch(() => {});
+
       dramaService.recordView(dramaId).catch(() => {});
     } catch (err) {
       console.error('Failed to load drama:', err);
@@ -145,6 +150,10 @@ export const SwipePlayerScreen: React.FC = () => {
           if (ok) setFavoritedDramas(prev => new Set([...prev, nextDramaId]));
         }).catch(() => {});
       }
+
+      interactionService.getDramaStats(nextDramaId).then(stats => {
+        setDramaStats(prev => ({ ...prev, [nextDramaId]: stats }));
+      }).catch(() => {});
 
       if (dramaQueue.current.length < 3) {
         const res = await dramaService.getDramas({ page: 1, pageSize: 10 });
@@ -269,6 +278,30 @@ export const SwipePlayerScreen: React.FC = () => {
     } catch (_) {}
   }, [isAuthenticated, favoritedDramas]);
 
+  const loadDramaStats = useCallback(async (dramaId: number) => {
+    if (dramaStats[dramaId]) return;
+    try {
+      const stats = await interactionService.getDramaStats(dramaId);
+      setDramaStats(prev => ({ ...prev, [dramaId]: stats }));
+    } catch (_) {}
+  }, [dramaStats]);
+
+  const handleShare = useCallback(async (dramaId: number) => {
+    try {
+      await interactionService.share(dramaId);
+      setDramaStats(prev => ({
+        ...prev,
+        [dramaId]: {
+          ...prev[dramaId],
+          like_count: prev[dramaId]?.like_count || 0,
+          collect_count: prev[dramaId]?.collect_count || 0,
+          comment_count: prev[dramaId]?.comment_count || 0,
+          share_count: (prev[dramaId]?.share_count || 0) + 1,
+        },
+      }));
+    } catch (_) {}
+  }, [dramaStats]);
+
   const goBack = useCallback(() => {
     saveProgress();
     clearPlayer();
@@ -279,22 +312,30 @@ export const SwipePlayerScreen: React.FC = () => {
     length: SCREEN_H, offset: SCREEN_H * index, index,
   }), []);
 
-  const renderItem = useCallback(({ item, index }: { item: SwipeEpisodeData; index: number }) => (
-    <SwipeVideoItem
-      data={item}
-      isActive={index === currentIndex}
-      onToggleLike={toggleLike}
-      onToggleFavorite={toggleFavorite}
-      isLiked={likedDramas.has(item.drama_id)}
-      isFavorited={favoritedDramas.has(item.drama_id)}
-      onVideoEnd={index === currentIndex ? handleVideoEnd : () => {}}
-      onProgressUpdate={() => {}}
-      onSwitchEpisode={handleSwitchEpisode}
-      index={index}
-      totalEpisodes={episodes.length}
-      episodes={currentEpisodes}
-    />
-  ), [currentIndex, likedDramas, favoritedDramas, handleVideoEnd, toggleLike, toggleFavorite, episodes.length, currentEpisodes, handleSwitchEpisode]);
+  const renderItem = useCallback(({ item, index }: { item: SwipeEpisodeData; index: number }) => {
+    const stats = dramaStats[item.drama_id] || {};
+    return (
+      <SwipeVideoItem
+        data={item}
+        isActive={index === currentIndex}
+        onToggleLike={toggleLike}
+        onToggleFavorite={toggleFavorite}
+        onShare={handleShare}
+        isLiked={likedDramas.has(item.drama_id)}
+        isFavorited={favoritedDramas.has(item.drama_id)}
+        likeCount={stats.like_count || 0}
+        collectCount={stats.collect_count || 0}
+        commentCount={stats.comment_count || 0}
+        shareCount={stats.share_count || 0}
+        onVideoEnd={index === currentIndex ? handleVideoEnd : () => {}}
+        onProgressUpdate={() => {}}
+        onSwitchEpisode={handleSwitchEpisode}
+        index={index}
+        totalEpisodes={episodes.length}
+        episodes={currentEpisodes}
+      />
+    );
+  }, [currentIndex, likedDramas, favoritedDramas, dramaStats, handleVideoEnd, toggleLike, toggleFavorite, handleShare, episodes.length, currentEpisodes, handleSwitchEpisode]);
 
   const keyExtractor = useCallback((item: SwipeEpisodeData) => `ep-${item.id}`, []);
 

@@ -1,6 +1,6 @@
 // ===== Drama Detail Screen =====
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, ScrollView, Modal, Alert, Dimensions } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, ScrollView, Modal, Alert, Dimensions, Share } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useDramaStore, usePlayerStore, useAuthStore, useWalletStore } from '../../stores';
@@ -30,6 +30,8 @@ export const DramaDetailScreen: React.FC = () => {
   const [purchaseModal, setPurchaseModal] = useState<{ episode: Episode } | null>(null);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [popularDramas, setPopularDramas] = useState<Drama[]>([]);
+  const [commentCount, setCommentCount] = useState(0);
+  const [shareCount, setShareCount] = useState(0);
   const [loadingPopular, setLoadingPopular] = useState(true);
 
   useEffect(() => {
@@ -44,6 +46,10 @@ export const DramaDetailScreen: React.FC = () => {
       interactionService.checkFavorite(dramaId, 'like').then(setIsLiked).catch(() => {});
       loadPoints();
     }
+    interactionService.getDramaStats(dramaId).then(stats => {
+      setCommentCount(stats.comment_count);
+      setShareCount(stats.share_count);
+    }).catch(() => {});
     // Load popular dramas for ranking section
     dramaService.getPopularDramas(10).then(list => {
       setPopularDramas(list);
@@ -137,6 +143,20 @@ export const DramaDetailScreen: React.FC = () => {
     }
   };
 
+  const handleShare = async () => {
+    try {
+      const result = await Share.share({
+        title: currentDrama?.title || 'DramaFlix',
+        message: `Watch "${currentDrama?.title || 'a drama'}" on DramaFlix! http://43.159.62.11`,
+      });
+      if (result.action === Share.sharedAction) {
+        await interactionService.share(dramaId);
+        setShareCount(prev => prev + 1);
+        toast.show(t('shared', 'Shared successfully'));
+      }
+    } catch (_) {}
+  };
+
   const renderEpisode = ({ item }: { item: Episode }) => {
     const isLocked = !item.is_free && item.points_cost > 0;
 
@@ -225,8 +245,13 @@ export const DramaDetailScreen: React.FC = () => {
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{formatNumber(hotScore)}</Text>
-            <Text style={styles.statLabel}>Hot</Text>
+            <Text style={styles.statNumber}>{formatNumber(commentCount)}</Text>
+            <Text style={styles.statLabel}>{t('comments', 'Comments')}</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{formatNumber(shareCount)}</Text>
+            <Text style={styles.statLabel}>{t('shares', 'Shares')}</Text>
           </View>
         </View>
 
@@ -265,6 +290,10 @@ export const DramaDetailScreen: React.FC = () => {
         <TouchableOpacity style={styles.actionBtn} onPress={onToggleLike}>
           <Text style={styles.actionIcon}>{isLiked ? '\u{1F44D}' : '\u{1F44D}\u{200D}\u{1F3FB}'}</Text>
           <Text style={styles.actionLabel}>{t('like')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.actionBtn, styles.actionBtnGap]} onPress={handleShare}>
+          <Text style={styles.actionIcon}>{'\u{1F4EA}'}</Text>
+          <Text style={styles.actionLabel}>{t('share', 'Share')}</Text>
         </TouchableOpacity>
       </View>
 

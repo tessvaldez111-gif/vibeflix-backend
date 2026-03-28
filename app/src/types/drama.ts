@@ -65,4 +65,9 @@ export interface SwipeEpisodeData {
   drama_genre: string;
   drama_status: string;
   episode_count: number;
+  // Interaction counts
+  like_count?: number;
+  collect_count?: number;
+  comment_count?: number;
+  share_count?: number;
 }

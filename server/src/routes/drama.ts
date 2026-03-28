@@ -173,11 +173,15 @@ router.delete('/dramas/:dramaId/episodes/:episodeId', requireAdmin, async (req: 
   }
 });
 
-// 更新剧集信息（标题、排序等）
+// 更新剧集信息（标题、排序、集号等）
 router.put('/dramas/:dramaId/episodes/:episodeId', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { title, sort_order } = req.body;
-    await DramaModel.updateEpisode(Number(req.params.episodeId), Number(req.params.dramaId), { title, sort_order });
+    const { title, sort_order, episode_number } = req.body;
+    const updateData: any = {};
+    if (title !== undefined) updateData.title = title;
+    if (sort_order !== undefined) updateData.sort_order = sort_order;
+    if (episode_number !== undefined) updateData.episode_number = episode_number;
+    await DramaModel.updateEpisode(Number(req.params.episodeId), Number(req.params.dramaId), updateData);
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ success: false, message: '更新剧集失败' });

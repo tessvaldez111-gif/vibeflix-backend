@@ -125,4 +125,38 @@ router.get('/favorites', requireAuth, async (req: AuthRequest, res: Response) =>
   }
 });
 
+// ========== 分享 ==========
+
+// 记录分享（分享计数+1）
+router.post('/share', async (req: AuthRequest, res: Response) => {
+  try {
+    const { drama_id } = req.body;
+    if (!drama_id) {
+      res.status(400).json({ success: false, message: '参数不完整' });
+      return;
+    }
+    await DramaModel.incrementShareCount(drama_id);
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: '记录分享失败' });
+  }
+});
+
+// ========== 短剧统计 ==========
+
+// 获取短剧互动统计（点赞/收藏/评论/分享计数）
+router.get('/drama-stats/:dramaId', async (req: AuthRequest, res: Response) => {
+  try {
+    const dramaId = Number(req.params.dramaId);
+    if (!dramaId) {
+      res.status(400).json({ success: false, message: '参数不完整' });
+      return;
+    }
+    const stats = await DramaModel.getDramaStats(dramaId);
+    res.json({ success: true, data: stats });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: '获取统计数据失败' });
+  }
+});
+
 export default router;

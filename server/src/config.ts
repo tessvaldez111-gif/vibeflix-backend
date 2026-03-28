@@ -18,4 +18,11 @@ export const config = {
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
   jwtSecret: process.env.JWT_SECRET || 'CHANGE-THIS-IN-PRODUCTION',
   isDev: nodeEnv === 'development',
+  // 腾讯云 COS 配置
+  cos: {
+    bucket: process.env.COS_BUCKET || '',
+    region: process.env.COS_REGION || 'ap-singapore',
+    secretId: process.env.COS_SECRET_ID || '',
+    secretKey: process.env.COS_SECRET_KEY || '',
+  },
 };

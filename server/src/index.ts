@@ -16,8 +16,13 @@ import orderRoutes from './routes/order';
 import paymentRoutes from './routes/payment';
 import adminRoutes from './routes/admin';
 import featureRoutes from './routes/features';
+import cosRoutes from './routes/cos';
+import commentRoutes from './routes/comment';
 
 const app = express();
+
+// 信任代理（Nginx 反向代理场景必须配置）
+app.set('trust proxy', 1);
 
 // 安全中间件
 app.use(helmet({
@@ -82,8 +87,8 @@ app.use('/api', orderRoutes);
 app.use('/api', paymentRoutes);
 app.use('/api', adminRoutes);
 app.use('/api', featureRoutes);
-
-// 管理后台页面
+app.use('/api', cosRoutes);
+app.use('/api', commentRoutes);
 app.get('/admin', (_req, res) => {
   res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.set('Pragma', 'no-cache');

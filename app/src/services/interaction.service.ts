@@ -40,4 +40,16 @@ export const interactionService = {
     const res = await apiClient.get<{ data: Drama[] }>(`/api/favorites?type=${type}`);
     return res.data.data;
   },
+
+  // ===== Share =====
+  share: async (dramaId: number): Promise<void> => {
+    await apiClient.post('/api/share', { drama_id: dramaId });
+  },
+
+  // ===== Stats =====
+  getDramaStats: async (dramaId: number): Promise<{ like_count: number; collect_count: number; comment_count: number; share_count: number; view_count: number }> => {
+    type StatsResponse = { like_count: number; collect_count: number; comment_count: number; share_count: number; view_count: number };
+    const res = await apiClient.get<{ data: StatsResponse }>(`/api/drama-stats/${dramaId}`);
+    return res.data.data;
+  },
 };

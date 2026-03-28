@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import Video, { VideoRef, ResizeMode, OnLoadData, OnProgressData } from 'react-native-video';
 import { getMediaUrl } from '../../services/api';
-import { formatDuration } from '../../utils/format';
+import { formatDuration, formatNumber } from '../../utils/format';
 import { COLORS } from '../../utils/constants';
 import { usePlayerStore, PLAYBACK_SPEEDS, type PlaybackSpeed } from '../../stores/playerStore';
 import DanmakuOverlay from './DanmakuOverlay';
@@ -27,8 +27,13 @@ interface Props {
   isActive: boolean;
   onToggleLike: (dramaId: number) => void;
   onToggleFavorite: (dramaId: number) => void;
+  onShare?: (dramaId: number) => void;
   isLiked: boolean;
   isFavorited: boolean;
+  likeCount: number;
+  collectCount: number;
+  commentCount: number;
+  shareCount: number;
   onVideoEnd: () => void;
   onProgressUpdate: (progress: number, duration: number) => void;
   onSwitchEpisode: (episode: Episode) => void;
@@ -42,8 +47,13 @@ const SwipeVideoItem: React.FC<Props> = memo(({
   isActive,
   onToggleLike,
   onToggleFavorite,
+  onShare,
   isLiked,
   isFavorited,
+  likeCount,
+  collectCount,
+  commentCount,
+  shareCount,
   onVideoEnd,
   onProgressUpdate,
   onSwitchEpisode,
@@ -197,8 +207,9 @@ const SwipeVideoItem: React.FC<Props> = memo(({
         title: data.drama_title || 'DramaFlix',
         message: `Watch "${data.drama_title || 'a drama'}" Ep.${data.episode_number} on DramaFlix! http://43.159.62.11`,
       });
+      onShare?.(data.drama_id);
     } catch (_) {}
-  }, [data.drama_title, data.episode_number]);
+  }, [data.drama_id, data.drama_title, data.episode_number, onShare]);
 
   const retryPlay = useCallback(() => {
     setHasError(false);
@@ -354,10 +365,10 @@ const SwipeVideoItem: React.FC<Props> = memo(({
           <Text style={styles.dramaCoverLabel}>{data.episode_count || totalEpisodes} eps</Text>
 
           <View style={styles.actionSpacing} />
-          <ActionIcon icon={isLiked ? '\u2764' : '\u2661'} label="Like" active={isLiked} onPress={() => onToggleLike(data.drama_id)} />
-          <ActionIcon icon={isFavorited ? '\u2605' : '\u2606'} label="Collect" active={isFavorited} onPress={() => onToggleFavorite(data.drama_id)} />
+          <ActionIcon icon={isLiked ? '\u2764' : '\u2661'} label={formatNumber(likeCount)} active={isLiked} onPress={() => onToggleLike(data.drama_id)} />
+          <ActionIcon icon={isFavorited ? '\u2605' : '\u2606'} label={formatNumber(collectCount)} active={isFavorited} onPress={() => onToggleFavorite(data.drama_id)} />
           <ActionIcon icon={danmakuEnabled ? '\u{1F4AC}' : '\u{1F4AC}'} label={danmakuEnabled ? 'Danmaku' : 'Off'} active={danmakuEnabled} onPress={() => setDanmakuEnabled(!danmakuEnabled)} />
-          <ActionIcon icon={'\u21AA'} label="Share" active={false} onPress={handleShare} />
+          <ActionIcon icon={'\u21AA'} label={formatNumber(shareCount)} active={false} onPress={handleShare} />
           <ActionIcon icon={'\u{1F4F9}'} label="Episodes" active={false} onPress={() => setShowEpisodes(true)} />
         </View>
       )}
@@ -405,7 +416,7 @@ const SwipeVideoItem: React.FC<Props> = memo(({
 
               {/* Comment button */}
               <TouchableOpacity style={styles.ctrlBtn} onPress={() => setShowComments(true)} activeOpacity={0.7}>
-                <Text style={styles.ctrlText}>Comments</Text>
+                <Text style={styles.ctrlText}>{formatNumber(commentCount)} {'\u{1F4AC}'}</Text>
               </TouchableOpacity>
             </View>
             <Text style={styles.timeText}>{formatDuration(duration)}</Text>

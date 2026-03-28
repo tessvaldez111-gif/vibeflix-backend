@@ -10,6 +10,7 @@ export interface DramaRow {
   tags: string | null;
   status: 'ongoing' | 'completed' | 'draft';
   episode_count: number;
+  total_episodes: number;
   rating: number;
   rating_count: number;
   view_count: number;
@@ -131,11 +132,12 @@ export async function create(data: {
   status?: string;
   cover_image?: string;
   release_date?: string;
+  total_episodes?: number;
 }): Promise<number> {
   const result = await query(
-    `INSERT INTO dramas (title, description, category_id, genre, tags, status, cover_image, release_date)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [data.title, data.description || '', data.category_id || null, data.genre || '其他', data.tags || null, data.status || 'ongoing', data.cover_image || null, data.release_date || null]
+    `INSERT INTO dramas (title, description, category_id, genre, tags, status, cover_image, release_date, total_episodes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [data.title, data.description || '', data.category_id || null, data.genre || '其他', data.tags || null, data.status || 'ongoing', data.cover_image || null, data.release_date || null, data.total_episodes || 0]
   ) as any;
   return result.insertId;
 }
@@ -149,6 +151,7 @@ export async function update(id: number, data: {
   status?: string;
   cover_image?: string;
   release_date?: string;
+  total_episodes?: number;
 }): Promise<void> {
   const fields: string[] = [];
   const values: any[] = [];
@@ -160,6 +163,7 @@ export async function update(id: number, data: {
   if (data.status !== undefined) { fields.push('status = ?'); values.push(data.status); }
   if (data.cover_image !== undefined) { fields.push('cover_image = ?'); values.push(data.cover_image); }
   if (data.release_date !== undefined) { fields.push('release_date = ?'); values.push(data.release_date); }
+  if (data.total_episodes !== undefined) { fields.push('total_episodes = ?'); values.push(data.total_episodes); }
   if (fields.length === 0) return;
   values.push(id);
   await query(`UPDATE dramas SET ${fields.join(', ')}, episode_count=(SELECT COUNT(*) FROM episodes WHERE drama_id=?) WHERE id=?`, [...values, id, id]);
@@ -234,6 +238,28 @@ export async function decrementCollectCount(id: number): Promise<void> {
   await query('UPDATE dramas SET collect_count = GREATEST(0, collect_count - 1) WHERE id = ?', [id]);
 }
 
+export async function incrementShareCount(id: number): Promise<void> {
+  await query('UPDATE dramas SET share_count = share_count + 1 WHERE id = ?', [id]);
+}
+
+export async function getCommentCount(dramaId: number): Promise<number> {
+  const result = await query('SELECT COUNT(*) as cnt FROM comments WHERE drama_id = ?', [dramaId]) as any[];
+  return result[0]?.cnt || 0;
+}
+
+export async function getDramaStats(dramaId: number): Promise<{
+  like_count: number; collect_count: number; comment_count: number; share_count: number; view_count: number;
+}> {
+  const rows = await query(
+    'SELECT like_count, collect_count, COALESCE(share_count,0) as share_count, view_count FROM dramas WHERE id = ?',
+    [dramaId]
+  ) as any[];
+  if (!rows.length) return { like_count: 0, collect_count: 0, comment_count: 0, share_count: 0, view_count: 0 };
+  const d = rows[0];
+  const comment_count = await getCommentCount(dramaId);
+  return { like_count: d.like_count || 0, collect_count: d.collect_count || 0, comment_count, share_count: d.share_count || 0, view_count: d.view_count || 0 };
+}
+
 // === Episode Model ===
 
 export async function findEpisodeById(dramaId: number, episodeNumber: number): Promise<EpisodeRow | null> {
@@ -285,11 +311,13 @@ export async function removeEpisode(episodeId: number, dramaId: number): Promise
 export async function updateEpisode(episodeId: number, dramaId: number, data: {
   title?: string;
   sort_order?: number;
+  episode_number?: number;
 }): Promise<void> {
   const fields: string[] = [];
   const values: any[] = [];
   if (data.title !== undefined) { fields.push('title = ?'); values.push(data.title); }
   if (data.sort_order !== undefined) { fields.push('sort_order = ?'); values.push(data.sort_order); }
+  if (data.episode_number !== undefined) { fields.push('episode_number = ?'); values.push(data.episode_number); }
   if (fields.length === 0) return;
   values.push(episodeId, dramaId);
   await query(`UPDATE episodes SET ${fields.join(', ')} WHERE id = ? AND drama_id = ?`, values);

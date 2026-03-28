@@ -171,16 +171,28 @@ export async function initDatabase(): Promise<void> {
     }
 
     // 插入默认管理员（密码用 bcrypt 哈希）
-    const [adminRows] = await conn.query("SELECT id, password FROM users WHERE username = 'admin'");
-    if ((adminRows as any[]).length === 0) {
-      const hashedPassword = await bcrypt.hash('admin123', 10);
-      await conn.query("INSERT INTO users (username, password, nickname, role, status) VALUES ('admin', ?, '管理员', 'admin', 1)", [hashedPassword]);
-    } else {
-      // 如果管理员密码是明文，自动升级为 bcrypt
-      const admin = (adminRows as any[])[0];
-      if (!admin.password.startsWith('$2')) {
-        const hashedPassword = await bcrypt.hash('admin123', 10);
-        await conn.query("UPDATE users SET password = ? WHERE id = ?", [hashedPassword, admin.id]);
+    const defaultAdmins = [
+      { username: 'admin', password: 'admin123', nickname: '超级管理员' },
+      { username: 'manager', password: 'manager123', nickname: '运营管理员' },
+      { username: 'editor', password: 'editor123', nickname: '内容编辑' },
+      { username: 'finance', password: 'finance123', nickname: '财务管理员' },
+    ];
+
+    for (const admin of defaultAdmins) {
+      const [rows] = await conn.query('SELECT id, password FROM users WHERE username = ?', [admin.username]);
+      if ((rows as any[]).length === 0) {
+        const hashedPassword = await bcrypt.hash(admin.password, 10);
+        await conn.query(
+          'INSERT INTO users (username, password, nickname, role, status) VALUES (?, ?, ?, "admin", 1)',
+          [admin.username, hashedPassword, admin.nickname]
+        );
+      } else {
+        // 如果管理员密码是明文，自动升级为 bcrypt
+        const existing = (rows as any[])[0];
+        if (!existing.password.startsWith('$2')) {
+          const hashedPassword = await bcrypt.hash(admin.password, 10);
+          await conn.query('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, existing.id]);
+        }
       }
     }
 
