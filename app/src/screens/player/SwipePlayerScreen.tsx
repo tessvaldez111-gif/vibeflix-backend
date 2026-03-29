@@ -353,6 +353,9 @@ export const SwipePlayerScreen: React.FC = () => {
 
   const renderItem = useCallback(({ item, index }: { item: SwipeEpisodeData; index: number }) => {
     const stats = dramaStats[item.drama_id] || {};
+    const diff = Math.abs(index - currentIndex);
+    // Pre-buffer adjacent videos (within 2 positions) for instant playback on swipe
+    const shouldPreload = diff >= 1 && diff <= 2;
     return (
       <SwipeVideoItem
         data={item}
@@ -374,6 +377,7 @@ export const SwipePlayerScreen: React.FC = () => {
         episodes={currentEpisodes}
         screenWidth={SCREEN_W}
         screenHeight={SCREEN_H}
+        preloadBuffer={shouldPreload}
       />
     );
   }, [currentIndex, likedDramas, favoritedDramas, dramaStats, handleVideoEnd, toggleLike, toggleFavorite, handleShare, episodes.length, currentEpisodes, handleSwitchEpisode, SCREEN_W, SCREEN_H]);
@@ -423,8 +427,8 @@ export const SwipePlayerScreen: React.FC = () => {
         viewabilityConfig={viewabilityConfig}
         onViewableItemsChanged={handleViewableChange}
         disableIntervalMomentum={true}
-        windowSize={3}
-        maxToRenderPerBatch={1}
+        windowSize={7}
+        maxToRenderPerBatch={3}
         initialNumToRender={1}
         removeClippedSubviews={false}
         onEndReached={() => {

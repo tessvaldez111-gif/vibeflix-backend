@@ -42,6 +42,7 @@ interface Props {
   episodes: Episode[];
   screenWidth: number;
   screenHeight: number;
+  preloadBuffer?: boolean; // true for adjacent videos: muted + paused but buffer ahead for instant start
 }
 
 const SwipeVideoItem: React.FC<Props> = memo(({
@@ -64,6 +65,7 @@ const SwipeVideoItem: React.FC<Props> = memo(({
   episodes,
   screenWidth: W,
   screenHeight: H,
+  preloadBuffer = false,
 }) => {
   const videoRef = useRef<VideoRef>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -125,25 +127,30 @@ const SwipeVideoItem: React.FC<Props> = memo(({
   // Play/pause based on isActive - FIXED: prevent audio bleed when swiping
   useEffect(() => {
     if (isActive) {
-      // Becoming active: reset state but DON'T start playing immediately
-      setCurrentTime(0);
-      setDuration(0);
-      setIsLoading(true);
-      setHasError(false);
-      setLocalDanmakuList([]);
-      setDecoderReady(false);
-
-      // Clear any pending play timer
-      if (playDelayTimer.current) {
-        clearTimeout(playDelayTimer.current);
-        playDelayTimer.current = null;
-      }
-
-      // Delay play start to ensure previous video's audio decoder is fully released.
-      // ExoPlayer needs time to tear down the old instance before creating a new one.
-      playDelayTimer.current = setTimeout(() => {
+      // Becoming active
+      const wasPreBuffered = decoderReady && duration > 0;
+      if (wasPreBuffered) {
+        // Video was pre-buffering: decoder ready + duration known, start immediately!
+        setIsLoading(false);
         setIsPlaying(true);
-      }, 300);
+      } else {
+        // Normal: fresh start - reset and delayed play
+        setCurrentTime(0);
+        setDuration(0);
+        setIsLoading(true);
+        setHasError(false);
+        setLocalDanmakuList([]);
+        setDecoderReady(false);
+
+        if (playDelayTimer.current) {
+          clearTimeout(playDelayTimer.current);
+          playDelayTimer.current = null;
+        }
+
+        playDelayTimer.current = setTimeout(() => {
+          setIsPlaying(true);
+        }, 300);
+      }
     } else {
       // Becoming inactive: STOP immediately and cancel any pending play
       if (playDelayTimer.current) {
@@ -198,6 +205,7 @@ const SwipeVideoItem: React.FC<Props> = memo(({
 
   const lastProgressRef = useRef(0);
   const handleProgress = useCallback((d: OnProgressData) => {
+    if (preloadBuffer) return; // Don't track progress while pre-buffering
     const now = Date.now();
     if (now - lastProgressRef.current < 1000) return;
     lastProgressRef.current = now;
@@ -205,7 +213,7 @@ const SwipeVideoItem: React.FC<Props> = memo(({
     const dur = d.playableDuration || duration;
     if (dur > 0) setDuration(dur);
     onProgressUpdate(d.currentTime, dur);
-  }, [isSeeking, duration, onProgressUpdate]);
+  }, [isSeeking, duration, onProgressUpdate, preloadBuffer]);
 
   const handleError = useCallback(() => {
     setIsLoading(false);
@@ -318,9 +326,12 @@ const SwipeVideoItem: React.FC<Props> = memo(({
 
   return (
     <View style={{ width: W, height: H, backgroundColor: '#000' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" translucent={false} />
+      {/* In pre-buffer mode, hide StatusBar to avoid overhead */}
+      {!preloadBuffer && (
+        <StatusBar barStyle="light-content" backgroundColor="#000" translucent={false} />
+      )}
 
-      {/* Video */}
+      {/* Video - same instance is reused when transitioning from preload to active */}
       <View style={{ position: 'absolute', top: 0, left: 0, width: W, height: H, overflow: 'hidden' }}>
         {videoUri ? (
           <Video
@@ -331,20 +342,22 @@ const SwipeVideoItem: React.FC<Props> = memo(({
             resizeMode={ResizeMode.CONTAIN}
             onLoad={handleLoad}
             onProgress={handleProgress}
-            onEnd={onVideoEnd}
+            onEnd={preloadBuffer ? () => {} : onVideoEnd}
             onError={handleError}
             useNativeControls={false}
             repeat={false}
-            paused={!isActive || !isPlaying || !decoderReady}
+            paused={preloadBuffer ? false : (!isActive || !isPlaying || !decoderReady)}
+            muted={preloadBuffer}
+            volume={preloadBuffer ? 0 : 1}
             posterResizeMode={ResizeMode.CONTAIN}
             allowsExternalPlayback={false}
             playInBackground={false}
             playWhenInactive={false}
             progressUpdateInterval={1000}
-            rate={playbackSpeed}
+            rate={preloadBuffer ? 0 : playbackSpeed}
             bufferConfig={{
-              minBufferMs: 15000,
-              maxBufferMs: 50000,
+              minBufferMs: preloadBuffer ? 5000 : 15000,
+              maxBufferMs: preloadBuffer ? 15000 : 50000,
               bufferForPlaybackMs: 2500,
               bufferForPlaybackAfterRebufferMs: 5000,
             }}
@@ -356,6 +369,10 @@ const SwipeVideoItem: React.FC<Props> = memo(({
           </View>
         )}
       </View>
+
+      {/* ===== Pre-buffer mode: no UI overlays ===== */}
+      {preloadBuffer ? null : (
+        <>
 
       {/* Danmaku overlay */}
       {isActive && (
@@ -565,6 +582,8 @@ const SwipeVideoItem: React.FC<Props> = memo(({
         onSelect={onSwitchEpisode}
         onClose={() => setShowEpisodes(false)}
       />
+        </>
+      )}
     </View>
   );
 });
