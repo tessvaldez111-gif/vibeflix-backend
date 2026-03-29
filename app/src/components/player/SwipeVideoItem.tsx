@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useState, useCallback, memo, useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Dimensions,
-  ActivityIndicator, StatusBar, Share, Platform, TextInput, Alert,
+  ActivityIndicator, StatusBar, Share, Platform, TextInput, Alert, Image,
 } from 'react-native';
 import Video, { VideoRef, ResizeMode, OnLoadData, OnProgressData } from 'react-native-video';
 import { getMediaUrl } from '../../services/api';
@@ -270,7 +270,7 @@ const SwipeVideoItem: React.FC<Props> = memo(({
     setShowDanmakuInput(false);
   }, [danmakuInput, data.drama_id, data.id, currentTime]);
 
-  const progressWidth = Math.max(0, W - 32);
+  const progressWidth = Math.max(0, W - 28);
 
   // Seek indicator text
   const getSeekText = () => {
@@ -393,9 +393,9 @@ const SwipeVideoItem: React.FC<Props> = memo(({
       {!hasError && (
         <View style={styles.rightActions}>
           <View style={styles.dramaCover}>
-            <Text style={styles.dramaCoverEmoji}>{'\u{1F3AC}'}</Text>
+            <Image source={{ uri: getMediaUrl(data.cover_url || '') }} style={styles.dramaCoverImg} />
           </View>
-          <Text style={styles.dramaCoverLabel}>{data.episode_count || totalEpisodes} eps</Text>
+          <Text style={styles.dramaCoverLabel}>{data.drama_title || ''}</Text>
 
           <View style={styles.actionSpacing} />
           <ActionIcon icon={isLiked ? '\u{2764}\u{FE0F}' : '\u{1F90D}'} label={formatNumber(likeCount)} active={isLiked} onPress={() => onToggleLike(data.drama_id)} />
@@ -403,16 +403,13 @@ const SwipeVideoItem: React.FC<Props> = memo(({
           <ActionIcon icon={danmakuEnabled ? '\u{1F4AC}' : '\u{1F4AD}'} label={danmakuEnabled ? 'ON' : 'OFF'} active={danmakuEnabled} onPress={() => {
             setDanmakuEnabled(!danmakuEnabled);
             if (!danmakuEnabled) {
-              // When enabling danmaku, show input
               setShowDanmakuInput(true);
             }
           }} />
-          <ActionIcon icon={'\u{1F4E4}'} label={formatNumber(shareCount)} active={false} onPress={handleShare} />
-          <ActionIcon icon={'\u{1F3AC}'} label="Episodes" active={false} onPress={() => setShowEpisodes(true)} />
         </View>
       )}
 
-      {/* ===== Bottom bar (always visible) ===== */}
+      {/* ===== Bottom bar (Hongguo style: progress + action row) ===== */}
       {!hasError && (
         <View style={styles.bottomBar}>
           {/* Progress bar */}
@@ -439,37 +436,33 @@ const SwipeVideoItem: React.FC<Props> = memo(({
             />
           </View>
 
-          {/* Time row + controls */}
-          <View style={styles.timeRow}>
-            <Text style={styles.timeText}>{formatDuration(displayTime)}</Text>
-            <View style={styles.controlBtns}>
-              {/* Speed button */}
-              <TouchableOpacity style={styles.ctrlBtn} onPress={() => setShowSpeedSelector(true)} activeOpacity={0.7}>
-                <Text style={styles.ctrlText}>{playbackSpeed === 1 ? '1x' : `${playbackSpeed}x`}</Text>
-              </TouchableOpacity>
+          {/* Bottom action row: title, controls, share */}
+          <View style={styles.bottomActionRow}>
+            {/* Left: drama info + episode indicator */}
+            <View style={styles.bottomInfo}>
+              <Text style={styles.bottomDramaTitle} numberOfLines={1}>{data.drama_title || ''}</Text>
+              <Text style={styles.bottomEpText}>EP.{data.episode_number}/{data.episode_count || totalEpisodes}</Text>
+            </View>
 
-              {/* Ad reward button */}
-              <TouchableOpacity style={styles.ctrlBtn} onPress={() => setShowAdReward(true)} activeOpacity={0.7}>
-                <Text style={[styles.ctrlText, styles.adBtnText]}>{'\u{1F680}'} Ad</Text>
+            {/* Right: action buttons */}
+            <View style={styles.bottomBtns}>
+              <TouchableOpacity style={styles.bottomBtn} onPress={() => setShowEpisodes(true)} activeOpacity={0.7}>
+                <Text style={styles.bottomBtnIcon}>{'\u{1F4CB}'}</Text>
+                <Text style={styles.bottomBtnLabel}>{'\u9009\u96C6'}</Text>
               </TouchableOpacity>
-
-              {/* Comment button - pause video when opening */}
-              <TouchableOpacity style={styles.ctrlBtn} onPress={() => {
-                setWasPlayingBefore(isPlaying);
-                setIsPlaying(false);
-                setShowComments(true);
-              }} activeOpacity={0.7}>
-                <Text style={styles.ctrlText}>{formatNumber(commentCount)} {'\u{1F4AC}'}</Text>
+              <TouchableOpacity style={styles.bottomBtn} onPress={() => setShowSpeedSelector(true)} activeOpacity={0.7}>
+                <Text style={styles.bottomBtnIcon}>{'\u{26A1}'}</Text>
+                <Text style={styles.bottomBtnLabel}>{playbackSpeed === 1 ? '1x' : `${playbackSpeed}x`}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.bottomBtn} onPress={() => setShowAdReward(true)} activeOpacity={0.7}>
+                <Text style={[styles.bottomBtnIcon, styles.adBtnIcon]}>{'\u{1F680}'}</Text>
+                <Text style={[styles.bottomBtnLabel, styles.adBtnLabel]}>{'\u514D\u8D39'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.bottomBtn} onPress={handleShare} activeOpacity={0.7}>
+                <Text style={styles.bottomBtnIcon}>{'\u{1F4E4}'}</Text>
+                <Text style={styles.bottomBtnLabel}>{'\u5206\u4EAB'}</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.timeText}>{formatDuration(duration)}</Text>
-          </View>
-
-          {/* Episode indicator */}
-          <View style={styles.epIndicator}>
-            <Text style={styles.epIndicatorText}>
-              {data.drama_title} {'\u00B7'} EP.{data.episode_number}/{data.episode_count || totalEpisodes}
-            </Text>
           </View>
 
           {/* Danmaku input (inline) */}
@@ -583,11 +576,11 @@ const styles = StyleSheet.create({
   retryBtn: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)' },
   retryText: { color: '#FFF', fontSize: 15, fontWeight: '600' },
 
-  // Right actions (Hongguo style - larger icons)
-  rightActions: { position: 'absolute', right: 10, bottom: H * 0.22, alignItems: 'center' },
-  dramaCover: { width: 48, height: 48, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
-  dramaCoverEmoji: { fontSize: 24 },
-  dramaCoverLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 11, marginBottom: 16 },
+  // Right actions (Hongguo style)
+  rightActions: { position: 'absolute', right: 10, bottom: H * 0.25, alignItems: 'center' },
+  dramaCover: { width: 48, height: 48, borderRadius: 8, overflow: 'hidden', marginBottom: 4, borderWidth: 2, borderColor: '#FFF' },
+  dramaCoverImg: { width: '100%', height: '100%', resizeMode: 'cover' as const },
+  dramaCoverLabel: { color: '#FFF', fontSize: 11, fontWeight: '600', marginTop: 2, maxWidth: 56, textAlign: 'center' },
   actionSpacing: { height: 10 },
   actionBtn: { alignItems: 'center', marginBottom: 20 },
   actionIcon: { fontSize: 30, color: '#FFF' },
@@ -595,14 +588,33 @@ const styles = StyleSheet.create({
   actionLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '600', marginTop: 4 },
   actionLabelActive: { color: COLORS.primaryLight },
 
-  // Bottom
+  // Bottom bar (Hongguo style: progress + action row)
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    paddingTop: 12,
-    paddingBottom: Platform.OS === 'android' ? 8 : 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingTop: 8,
+    paddingBottom: Platform.OS === 'android' ? 8 : 24,
   },
-  progressTrack: { height: 24, justifyContent: 'center', position: 'relative', marginLeft: 16, marginRight: 16 },
+  bottomActionRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingLeft: 14, paddingRight: 10, marginTop: 4,
+  },
+  bottomInfo: { flex: 1, marginRight: 10 },
+  bottomDramaTitle: { color: '#FFF', fontSize: 14, fontWeight: '700' },
+  bottomEpText: { color: 'rgba(255,255,255,0.6)', fontSize: 12, marginTop: 2 },
+  bottomBtns: { flexDirection: 'row', gap: 4, alignItems: 'center' },
+  bottomBtn: {
+    alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 8, paddingVertical: 4,
+    backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 14,
+  },
+  bottomBtnIcon: { fontSize: 16, color: '#FFF' },
+  bottomBtnLabel: { fontSize: 10, color: 'rgba(255,255,255,0.8)', fontWeight: '500', marginTop: 1 },
+  adBtnIcon: { color: COLORS.gold },
+  adBtnLabel: { color: COLORS.gold },
+
+  // Progress bar
+  progressTrack: { height: 24, justifyContent: 'center', position: 'relative', marginLeft: 14, marginRight: 14 },
   progressFill: { height: 3, borderRadius: 1.5, backgroundColor: COLORS.primaryLight, position: 'absolute', left: 0, top: 10.5 },
   progressThumb: {
     position: 'absolute', width: 14, height: 14, borderRadius: 7,
@@ -610,22 +622,6 @@ const styles = StyleSheet.create({
     elevation: 2, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 2, shadowOffset: { width: 0, height: 1 },
   },
   progressTouchArea: { height: 24 },
-
-  timeRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingLeft: 16, paddingRight: 16, marginTop: -2,
-  },
-  timeText: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '500' },
-  controlBtns: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  ctrlBtn: {
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-  },
-  ctrlText: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '600' },
-  adBtnText: { color: COLORS.gold },
-
-  epIndicator: { marginTop: 6, alignItems: 'center' },
-  epIndicatorText: { color: 'rgba(255,255,255,0.5)', fontSize: 11 },
 
   // Danmaku input
   danmakuInputRow: {
