@@ -2,7 +2,7 @@
 // Enhanced: Episode switching, playback speed, danmaku, ad reward, comments
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, Dimensions,
+  View, Text, TouchableOpacity, StyleSheet, useWindowDimensions,
   ActivityIndicator, StatusBar, Platform, FlatList, Alert,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -14,8 +14,6 @@ import { getMediaUrl } from '../../services/api';
 import { COLORS } from '../../utils/constants';
 import SwipeVideoItem, { type SwipeEpisodeData } from '../../components/player/SwipeVideoItem';
 import type { Episode } from '../../types';
-
-const { height: SCREEN_H } = Dimensions.get('window');
 
 type RouteParams = {
   dramaId: number;
@@ -43,6 +41,9 @@ export const SwipePlayerScreen: React.FC = () => {
   const params = (route.params || {}) as RouteParams;
   const initialDramaId = params.dramaId;
   const startEpId = params.startEpisodeId;
+
+  // Dynamic dimensions - auto-adapts to screen rotation, foldable screens, different resolutions
+  const { height: SCREEN_H, width: SCREEN_W } = useWindowDimensions();
 
   const flatListRef = useRef<FlatList>(null);
   const { isAuthenticated } = useAuthStore();
@@ -241,14 +242,36 @@ export const SwipePlayerScreen: React.FC = () => {
     }
   }, [episodes, saveProgress, navigation]);
 
-  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
+  const onViewableItemsChanged = useRef(({ viewableItems, changed }: any) => {
     if (viewableItems && viewableItems.length > 0) {
       const idx = viewableItems[0].index;
-      if (typeof idx === 'number' && idx !== currentIndex) setCurrentIndex(idx);
+      if (typeof idx === 'number' && idx !== currentIndex && !isSwipingRef.current) {
+        setCurrentIndex(idx);
+      }
     }
   }).current;
 
-  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 80 }).current;
+  // Debounce swipe to prevent rapid consecutive scrolls
+  const isSwipingRef = useRef(false);
+  const swipeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleViewableChange = useRef(({ viewableItems }: any) => {
+    if (!viewableItems || viewableItems.length === 0) return;
+    const idx = viewableItems[0].index;
+    if (typeof idx !== 'number' || idx === currentIndex) return;
+
+    // Debounce: ignore rapid index changes
+    if (isSwipingRef.current) return;
+    isSwipingRef.current = true;
+    if (swipeDebounceRef.current) clearTimeout(swipeDebounceRef.current);
+    swipeDebounceRef.current = setTimeout(() => {
+      isSwipingRef.current = false;
+    }, 400);
+
+    setCurrentIndex(idx);
+  }).current;
+
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 70, minimumViewTime: 200 }).current;
 
   const toggleLike = useCallback(async (dramaId: number) => {
     if (!isAuthenticated || !dramaId) return;
@@ -326,7 +349,7 @@ export const SwipePlayerScreen: React.FC = () => {
 
   const getItemLayout = useCallback((_data: any, index: number) => ({
     length: SCREEN_H, offset: SCREEN_H * index, index,
-  }), []);
+  }), [SCREEN_H]);
 
   const renderItem = useCallback(({ item, index }: { item: SwipeEpisodeData; index: number }) => {
     const stats = dramaStats[item.drama_id] || {};
@@ -349,9 +372,11 @@ export const SwipePlayerScreen: React.FC = () => {
         index={index}
         totalEpisodes={episodes.length}
         episodes={currentEpisodes}
+        screenWidth={SCREEN_W}
+        screenHeight={SCREEN_H}
       />
     );
-  }, [currentIndex, likedDramas, favoritedDramas, dramaStats, handleVideoEnd, toggleLike, toggleFavorite, handleShare, episodes.length, currentEpisodes, handleSwitchEpisode]);
+  }, [currentIndex, likedDramas, favoritedDramas, dramaStats, handleVideoEnd, toggleLike, toggleFavorite, handleShare, episodes.length, currentEpisodes, handleSwitchEpisode, SCREEN_W, SCREEN_H]);
 
   const keyExtractor = useCallback((item: SwipeEpisodeData) => `ep-${item.id}`, []);
 
@@ -396,16 +421,18 @@ export const SwipePlayerScreen: React.FC = () => {
         vertical
         showsVerticalScrollIndicator={false}
         viewabilityConfig={viewabilityConfig}
-        onViewableItemsChanged={onViewableItemsChanged}
+        onViewableItemsChanged={handleViewableChange}
+        disableIntervalMomentum={true}
         windowSize={3}
         maxToRenderPerBatch={1}
         initialNumToRender={1}
+        removeClippedSubviews={false}
         onEndReached={() => {
           if (episodes.length - currentIndex <= 3) loadNextDrama();
         }}
         onEndReachedThreshold={0.5}
         ListFooterComponent={
-          <View style={styles.footerLoading}>
+          <View style={{ height: SCREEN_H, justifyContent: 'center', alignItems: 'center' }}>
             <ActivityIndicator size="small" color="rgba(255,255,255,0.5)" />
           </View>
         }
@@ -433,5 +460,4 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', zIndex: 100,
   },
   backIcon: { color: '#FFF', fontSize: 18, fontWeight: '600' },
-  footerLoading: { height: SCREEN_H, justifyContent: 'center', alignItems: 'center' },
 });

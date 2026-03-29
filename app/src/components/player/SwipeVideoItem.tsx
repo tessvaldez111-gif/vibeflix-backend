@@ -2,7 +2,7 @@
 // Enhanced: Playback speed, danmaku, ad reward, comments, episode selector
 import React, { useRef, useEffect, useState, useCallback, memo, useMemo } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, Dimensions,
+  View, Text, TouchableOpacity, StyleSheet,
   ActivityIndicator, StatusBar, Share, Platform, TextInput, Alert,
 } from 'react-native';
 import Video, { VideoRef, ResizeMode, OnLoadData, OnProgressData } from 'react-native-video';
@@ -18,8 +18,6 @@ import AdRewardModal from './AdRewardModal';
 import CommentPanel from './CommentPanel';
 import EpisodeSelector from './EpisodeSelector';
 import type { Episode, SwipeEpisodeData as SwipeData } from '../../types';
-
-const { width: W, height: H } = Dimensions.get('window');
 
 // Re-export the interface for compatibility
 export type SwipeEpisodeData = SwipeData;
@@ -42,6 +40,8 @@ interface Props {
   index: number;
   totalEpisodes: number;
   episodes: Episode[];
+  screenWidth: number;
+  screenHeight: number;
 }
 
 const SwipeVideoItem: React.FC<Props> = memo(({
@@ -62,6 +62,8 @@ const SwipeVideoItem: React.FC<Props> = memo(({
   index,
   totalEpisodes,
   episodes,
+  screenWidth: W,
+  screenHeight: H,
 }) => {
   const videoRef = useRef<VideoRef>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -82,8 +84,14 @@ const SwipeVideoItem: React.FC<Props> = memo(({
   const [localDanmakuList, setLocalDanmakuList] = useState<any[]>([]);
   // Trigger danmaku overlay refresh when user sends a new danmaku
   const [danmakuRefresh, setDanmakuRefresh] = useState(0);
+  // Track if video decoder is ready to prevent audio bleed
+  const [decoderReady, setDecoderReady] = useState(false);
 
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track previous active state to detect transitions
+  const prevActiveRef = useRef(false);
+  // Delay play timer to ensure old video audio stops before new one starts
+  const playDelayTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadPoints = useWalletStore(state => state.loadPoints);
 
@@ -114,18 +122,45 @@ const SwipeVideoItem: React.FC<Props> = memo(({
     return () => { if (controlsTimer.current) clearTimeout(controlsTimer.current); };
   }, [isPlaying, isLoading, hasError]);
 
-  // Play/pause based on isActive
+  // Play/pause based on isActive - FIXED: prevent audio bleed when swiping
   useEffect(() => {
     if (isActive) {
+      // Becoming active: reset state but DON'T start playing immediately
       setCurrentTime(0);
       setDuration(0);
       setIsLoading(true);
       setHasError(false);
       setLocalDanmakuList([]);
-      setIsPlaying(true);
+      setDecoderReady(false);
+
+      // Clear any pending play timer
+      if (playDelayTimer.current) {
+        clearTimeout(playDelayTimer.current);
+        playDelayTimer.current = null;
+      }
+
+      // Delay play start to ensure previous video's audio decoder is fully released.
+      // ExoPlayer needs time to tear down the old instance before creating a new one.
+      playDelayTimer.current = setTimeout(() => {
+        setIsPlaying(true);
+      }, 300);
     } else {
+      // Becoming inactive: STOP immediately and cancel any pending play
+      if (playDelayTimer.current) {
+        clearTimeout(playDelayTimer.current);
+        playDelayTimer.current = null;
+      }
       setIsPlaying(false);
+      setDecoderReady(false);
     }
+    prevActiveRef.current = isActive;
+
+    return () => {
+      if (playDelayTimer.current) {
+        clearTimeout(playDelayTimer.current);
+        playDelayTimer.current = null;
+      }
+    };
   }, [isActive]);
 
   // Load danmaku from backend when episode becomes active
@@ -157,6 +192,8 @@ const SwipeVideoItem: React.FC<Props> = memo(({
     setIsLoading(false);
     setHasError(false);
     setDuration(d.duration);
+    // Mark decoder as ready - video frames will now render
+    setDecoderReady(true);
   }, []);
 
   const lastProgressRef = useRef(0);
@@ -270,26 +307,27 @@ const SwipeVideoItem: React.FC<Props> = memo(({
   }, [danmakuInput, data.drama_id, data.id, currentTime]);
 
   const progressWidth = Math.max(0, W - 28);
+  // Update getSeekText to use W properly
+  const seekTextX = doubleTapXRef.current;
 
   // Seek indicator text
   const getSeekText = () => {
-    if (x > W * 0.6) return '\u25B6\u25B6 +10s';
+    if (seekTextX > W * 0.6) return '\u25B6\u25B6 +10s';
     return '\u25C0\u25C0 -10s';
   };
-  const x = doubleTapXRef.current;
 
   return (
-    <View style={styles.container}>
+    <View style={{ width: W, height: H, backgroundColor: '#000' }}>
       <StatusBar barStyle="light-content" backgroundColor="#000" translucent={false} />
 
       {/* Video */}
-      <View style={styles.videoWrapper}>
+      <View style={{ position: 'absolute', top: 0, left: 0, width: W, height: H, overflow: 'hidden' }}>
         {videoUri ? (
           <Video
             key={activeVideoKey}
             ref={videoRef}
             source={{ uri: videoUri }}
-            style={styles.video}
+            style={{ width: W, height: H }}
             resizeMode={ResizeMode.CONTAIN}
             onLoad={handleLoad}
             onProgress={handleProgress}
@@ -297,10 +335,11 @@ const SwipeVideoItem: React.FC<Props> = memo(({
             onError={handleError}
             useNativeControls={false}
             repeat={false}
-            paused={!isActive || !isPlaying}
+            paused={!isActive || !isPlaying || !decoderReady}
             posterResizeMode={ResizeMode.CONTAIN}
             allowsExternalPlayback={false}
             playInBackground={false}
+            playWhenInactive={false}
             progressUpdateInterval={1000}
             rate={playbackSpeed}
             bufferConfig={{
@@ -326,6 +365,7 @@ const SwipeVideoItem: React.FC<Props> = memo(({
           enabled={danmakuEnabled}
           opacity={danmakuOpacity}
           refreshTrigger={danmakuRefresh}
+          screenWidth={W}
         />
       )}
 
@@ -391,7 +431,7 @@ const SwipeVideoItem: React.FC<Props> = memo(({
 
       {/* ===== Right side actions (always visible) ===== */}
       {!hasError && (
-        <View style={styles.rightActions}>
+        <View style={[styles.rightActions, { bottom: H * 0.28 }]}>
           <ActionIcon icon={isLiked ? '\u{2764}\u{FE0F}' : '\u{1F90D}'} label={formatNumber(likeCount)} active={isLiked} onPress={() => onToggleLike(data.drama_id)} />
           <ActionIcon icon={isFavorited ? '\u{2B50}' : '\u{2606}'} label={formatNumber(collectCount)} active={isFavorited} onPress={() => onToggleFavorite(data.drama_id)} />
           <ActionIcon icon={'\u{1F4AC}'} label={formatNumber(commentCount)} active={false} onPress={() => { setShowComments(true); setIsPlaying(false); }} />
@@ -540,9 +580,6 @@ const ActionIcon: React.FC<{ icon: string; label: string; active: boolean; onPre
 );
 
 const styles = StyleSheet.create({
-  container: { width: W, height: H, backgroundColor: '#000' },
-  videoWrapper: { position: 'absolute', top: 0, left: 0, width: W, height: H, overflow: 'hidden' },
-  video: { width: W, height: H },
   centerOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center' },
 
   // Top
@@ -566,8 +603,8 @@ const styles = StyleSheet.create({
   retryBtn: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)' },
   retryText: { color: '#FFF', fontSize: 15, fontWeight: '600' },
 
-  // Right actions (Hongguo style)
-  rightActions: { position: 'absolute', right: 10, bottom: H * 0.28, alignItems: 'center' },
+  // Right actions (Hongguo style) - bottom set dynamically via inline style
+  rightActions: { position: 'absolute', right: 10, alignItems: 'center' },
   actionBtn: { alignItems: 'center', marginBottom: 20 },
   actionIcon: { fontSize: 30, color: '#FFF' },
   actionIconActive: { color: COLORS.primaryLight },

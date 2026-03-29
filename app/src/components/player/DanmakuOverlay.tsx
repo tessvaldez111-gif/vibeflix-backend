@@ -1,9 +1,7 @@
 // ===== Danmaku (Bullet Comments) Overlay =====
 import React, { memo, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, Dimensions, Animated } from 'react-native';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import type { Danmaku } from '../../types';
-
-const { width: W } = Dimensions.get('window');
 
 interface DanmakuItem extends Danmaku {
   _animX: Animated.Value;
@@ -17,6 +15,7 @@ interface Props {
   enabled: boolean;
   opacity: number; // 0-1
   refreshTrigger?: number; // incremented when user sends a new danmaku to force immediate display
+  screenWidth?: number; // dynamic screen width for cross-device adaptation
 }
 
 const TRACK_HEIGHT = 28;
@@ -26,7 +25,10 @@ const CENTER_TRACKS = 3;
 const SPEED_MS = 8000; // time for danmaku to cross screen
 const COOLDOWN_MS = SPEED_MS + 2000; // after a danmaku finishes, wait this long before showing it again
 
-const DanmakuOverlay: React.FC<Props> = memo(({ danmakuList, currentTime, enabled, opacity, refreshTrigger = 0 }) => {
+const DanmakuOverlay: React.FC<Props> = memo(({ danmakuList, currentTime, enabled, opacity, refreshTrigger = 0, screenWidth = 0 }) => {
+  // Use screenWidth prop if provided, otherwise fallback to static Dimensions
+  const W = screenWidth > 0 ? screenWidth : require('react-native').Dimensions.get('window').width;
+
   const activeRef = useRef<DanmakuItem[]>([]);
   const [visibleItems, setVisibleItems] = React.useState<DanmakuItem[]>([]);
   // Track when each danmaku was last shown to implement cooldown
