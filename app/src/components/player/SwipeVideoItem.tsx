@@ -398,17 +398,17 @@ const SwipeVideoItem: React.FC<Props> = memo(({
           <Text style={styles.dramaCoverLabel}>{data.episode_count || totalEpisodes} eps</Text>
 
           <View style={styles.actionSpacing} />
-          <ActionIcon icon={isLiked ? '\u2764' : '\u2661'} label={formatNumber(likeCount)} active={isLiked} onPress={() => onToggleLike(data.drama_id)} />
-          <ActionIcon icon={isFavorited ? '\u2605' : '\u2606'} label={formatNumber(collectCount)} active={isFavorited} onPress={() => onToggleFavorite(data.drama_id)} />
-          <ActionIcon icon={danmakuEnabled ? '\u{1F4AC}' : '\u{1F4AC}'} label={danmakuEnabled ? 'Danmaku' : 'Off'} active={danmakuEnabled} onPress={() => {
+          <ActionIcon icon={isLiked ? '\u{2764}\u{FE0F}' : '\u{1F90D}'} label={formatNumber(likeCount)} active={isLiked} onPress={() => onToggleLike(data.drama_id)} />
+          <ActionIcon icon={isFavorited ? '\u{2B50}' : '\u{2606}'} label={formatNumber(collectCount)} active={isFavorited} onPress={() => onToggleFavorite(data.drama_id)} />
+          <ActionIcon icon={danmakuEnabled ? '\u{1F4AC}' : '\u{1F4AD}'} label={danmakuEnabled ? 'ON' : 'OFF'} active={danmakuEnabled} onPress={() => {
             setDanmakuEnabled(!danmakuEnabled);
             if (!danmakuEnabled) {
               // When enabling danmaku, show input
               setShowDanmakuInput(true);
             }
           }} />
-          <ActionIcon icon={'\u21AA'} label={formatNumber(shareCount)} active={false} onPress={handleShare} />
-          <ActionIcon icon={'\u{1F4F9}'} label="Episodes" active={false} onPress={() => setShowEpisodes(true)} />
+          <ActionIcon icon={'\u{1F4E4}'} label={formatNumber(shareCount)} active={false} onPress={handleShare} />
+          <ActionIcon icon={'\u{1F3AC}'} label="Episodes" active={false} onPress={() => setShowEpisodes(true)} />
         </View>
       )}
 
@@ -583,16 +583,16 @@ const styles = StyleSheet.create({
   retryBtn: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)' },
   retryText: { color: '#FFF', fontSize: 15, fontWeight: '600' },
 
-  // Right actions
+  // Right actions (Hongguo style - larger icons)
   rightActions: { position: 'absolute', right: 10, bottom: H * 0.22, alignItems: 'center' },
-  dramaCover: { width: 44, height: 44, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
-  dramaCoverEmoji: { fontSize: 20 },
-  dramaCoverLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 10, marginBottom: 16 },
+  dramaCover: { width: 48, height: 48, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
+  dramaCoverEmoji: { fontSize: 24 },
+  dramaCoverLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 11, marginBottom: 16 },
   actionSpacing: { height: 10 },
-  actionBtn: { alignItems: 'center', marginBottom: 18 },
-  actionIcon: { fontSize: 24, color: '#FFF' },
+  actionBtn: { alignItems: 'center', marginBottom: 20 },
+  actionIcon: { fontSize: 30, color: '#FFF' },
   actionIconActive: { color: COLORS.primaryLight },
-  actionLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 10, fontWeight: '500', marginTop: 3 },
+  actionLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '600', marginTop: 4 },
   actionLabelActive: { color: COLORS.primaryLight },
 
   // Bottom
@@ -615,13 +615,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingLeft: 16, paddingRight: 16, marginTop: -2,
   },
-  timeText: { color: 'rgba(255,255,255,0.8)', fontSize: 11 },
-  controlBtns: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  timeText: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '500' },
+  controlBtns: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   ctrlBtn: {
-    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
-  ctrlText: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '600' },
+  ctrlText: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '600' },
   adBtnText: { color: COLORS.gold },
 
   epIndicator: { marginTop: 6, alignItems: 'center' },
@@ -633,15 +633,15 @@ const styles = StyleSheet.create({
     marginHorizontal: 16, marginTop: 8, gap: 8,
   },
   danmakuInput: {
-    flex: 1, height: 34, borderRadius: 17,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingHorizontal: 14, color: '#FFF', fontSize: 13,
+    flex: 1, height: 38, borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: 16, color: '#FFF', fontSize: 14,
   },
   danmakuSendBtn: {
-    paddingHorizontal: 14, height: 34, borderRadius: 17,
+    paddingHorizontal: 16, height: 38, borderRadius: 19,
     backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center',
   },
-  danmakuSendText: { color: '#FFF', fontSize: 13, fontWeight: '600' },
+  danmakuSendText: { color: '#FFF', fontSize: 14, fontWeight: '600' },
 });
 
 export default SwipeVideoItem;
