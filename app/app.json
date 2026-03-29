@@ -2,7 +2,7 @@
   "expo": {
     "name": "DramaFlix",
     "slug": "dramaflix",
-    "version": "1.0.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -22,7 +22,7 @@
         "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "package": "com.dramaflix.app",
-      "versionCode": 1,
+      "versionCode": 3,
       "usesCleartextTraffic": true
     },
     "web": {
