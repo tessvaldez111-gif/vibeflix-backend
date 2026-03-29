@@ -2,7 +2,7 @@
   "expo": {
     "name": "DramaFlix",
     "slug": "dramaflix",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -14,7 +14,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.dramaflix.app",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -22,7 +25,7 @@
         "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "package": "com.dramaflix.app",
-      "versionCode": 3,
+      "versionCode": 4,
       "usesCleartextTraffic": true
     },
     "web": {
@@ -38,9 +41,8 @@
     "extra": {
       "apiBaseUrl": "http://43.159.62.11",
       "eas": {
-        "projectId": "fb1a163c-5a7e-4550-8bc6-04cd63290a85"
+        "projectId": "4b929053-03ae-4a05-80dc-02021189eb9c"
       }
-    },
-    "owner": "lbx1123"
+    }
   }
 }
