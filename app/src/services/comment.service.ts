@@ -31,9 +31,9 @@ export const commentService = {
     return res.data.data;
   },
 
-  sendDanmaku: async (dramaId: number, episodeId: number, content: string, color?: string, position?: number): Promise<Danmaku> => {
+  sendDanmaku: async (dramaId: number, episodeId: number, content: string, color?: string, position?: number, time?: number): Promise<Danmaku> => {
     const res = await apiClient.post<{ data: Danmaku }>('/api/danmaku', {
-      dramaId, episodeId, content, color: color || '#FFFFFF', position: position ?? 0,
+      dramaId, episodeId, content, color: color || '#FFFFFF', position: position ?? 0, time: time ?? 0,
     });
     return res.data.data;
   },

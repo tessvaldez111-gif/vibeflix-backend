@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useState, useCallback, memo, useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Dimensions,
-  ActivityIndicator, StatusBar, Share, Platform, TextInput, Alert, Image,
+  ActivityIndicator, StatusBar, Share, Platform, TextInput, Alert,
 } from 'react-native';
 import Video, { VideoRef, ResizeMode, OnLoadData, OnProgressData } from 'react-native-video';
 import { getMediaUrl } from '../../services/api';
@@ -78,12 +78,10 @@ const SwipeVideoItem: React.FC<Props> = memo(({
   const [showEpisodes, setShowEpisodes] = useState(false);
   const [showAdReward, setShowAdReward] = useState(false);
   const [danmakuInput, setDanmakuInput] = useState('');
-  const [showDanmakuInput, setShowDanmakuInput] = useState(false);
   // Local danmaku list for this episode (loaded from backend + user-sent)
   const [localDanmakuList, setLocalDanmakuList] = useState<any[]>([]);
-  const [wasPlayingBefore, setWasPlayingBefore] = useState(true);
-  // Force remount key for Video component when re-activating
-  const [videoKey, setVideoKey] = useState(0);
+  // Trigger danmaku overlay refresh when user sends a new danmaku
+  const [danmakuRefresh, setDanmakuRefresh] = useState(0);
 
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -99,8 +97,12 @@ const SwipeVideoItem: React.FC<Props> = memo(({
 
   // Memoize video URI
   const videoUri = useMemo(() => data.video_path ? getMediaUrl(data.video_path) : '', [data.video_path]);
+
+  // Use videoUri + index as key: ensures Video fully remounts on EVERY index change,
+  // even when swiping back to a previously visited episode (same videoUri).
+  // This completely destroys the old audio decoder and prevents audio bleed / frozen frame.
+  const activeVideoKey = `${videoUri}__${index}`;
   const progressPercent = duration > 0 ? ((isSeeking ? seekPosition : currentTime) / duration) * 100 : 0;
-  const displayTime = isSeeking ? seekPosition : currentTime;
 
   // Auto-hide only the top title bar after 4s
   useEffect(() => {
@@ -112,19 +114,15 @@ const SwipeVideoItem: React.FC<Props> = memo(({
     return () => { if (controlsTimer.current) clearTimeout(controlsTimer.current); };
   }, [isPlaying, isLoading, hasError]);
 
-  // Play/pause based on isActive - force remount Video when re-activating
+  // Play/pause based on isActive
   useEffect(() => {
     if (isActive) {
-      // Force Video component to fully remount by changing key
-      // This fixes the audio glitch when swiping back to episode 1
-      setVideoKey(prev => prev + 1);
       setCurrentTime(0);
       setDuration(0);
       setIsLoading(true);
       setHasError(false);
-      setLocalDanmakuList([]); // Clear danmaku when switching episode
-      const t = setTimeout(() => setIsPlaying(true), 500);
-      return () => clearTimeout(t);
+      setLocalDanmakuList([]);
+      setIsPlaying(true);
     } else {
       setIsPlaying(false);
     }
@@ -264,10 +262,11 @@ const SwipeVideoItem: React.FC<Props> = memo(({
     };
     // Add to local list for instant display
     setLocalDanmakuList(prev => [...prev, newDanmaku]);
-    // Also send to backend
-    commentService.sendDanmaku(data.drama_id, data.id, danmakuInput.trim()).catch(() => {});
+    // Force danmaku overlay to re-evaluate immediately
+    setDanmakuRefresh(prev => prev + 1);
+    // Also send to backend (include time so server stores it correctly)
+    commentService.sendDanmaku(data.drama_id, data.id, danmakuInput.trim(), '#FFFFFF', 0, currentTime).catch(() => {});
     setDanmakuInput('');
-    setShowDanmakuInput(false);
   }, [danmakuInput, data.drama_id, data.id, currentTime]);
 
   const progressWidth = Math.max(0, W - 28);
@@ -287,7 +286,7 @@ const SwipeVideoItem: React.FC<Props> = memo(({
       <View style={styles.videoWrapper}>
         {videoUri ? (
           <Video
-            key={videoKey}
+            key={activeVideoKey}
             ref={videoRef}
             source={{ uri: videoUri }}
             style={styles.video}
@@ -326,6 +325,7 @@ const SwipeVideoItem: React.FC<Props> = memo(({
           currentTime={currentTime}
           enabled={danmakuEnabled}
           opacity={danmakuOpacity}
+          refreshTrigger={danmakuRefresh}
         />
       )}
 
@@ -392,19 +392,11 @@ const SwipeVideoItem: React.FC<Props> = memo(({
       {/* ===== Right side actions (always visible) ===== */}
       {!hasError && (
         <View style={styles.rightActions}>
-          <View style={styles.dramaCover}>
-            <Image source={{ uri: getMediaUrl(data.cover_url || '') }} style={styles.dramaCoverImg} />
-          </View>
-          <Text style={styles.dramaCoverLabel}>{data.drama_title || ''}</Text>
-
-          <View style={styles.actionSpacing} />
           <ActionIcon icon={isLiked ? '\u{2764}\u{FE0F}' : '\u{1F90D}'} label={formatNumber(likeCount)} active={isLiked} onPress={() => onToggleLike(data.drama_id)} />
           <ActionIcon icon={isFavorited ? '\u{2B50}' : '\u{2606}'} label={formatNumber(collectCount)} active={isFavorited} onPress={() => onToggleFavorite(data.drama_id)} />
-          <ActionIcon icon={danmakuEnabled ? '\u{1F4AC}' : '\u{1F4AD}'} label={danmakuEnabled ? 'ON' : 'OFF'} active={danmakuEnabled} onPress={() => {
+          <ActionIcon icon={'\u{1F4AC}'} label={formatNumber(commentCount)} active={false} onPress={() => { setShowComments(true); setIsPlaying(false); }} />
+          <ActionIcon icon={danmakuEnabled ? '\u{1F5E3}\u{FE0F}' : '\u{1F507}'} label={danmakuEnabled ? '弹幕开' : '弹幕关'} active={danmakuEnabled} onPress={() => {
             setDanmakuEnabled(!danmakuEnabled);
-            if (!danmakuEnabled) {
-              setShowDanmakuInput(true);
-            }
           }} />
         </View>
       )}
@@ -447,42 +439,40 @@ const SwipeVideoItem: React.FC<Props> = memo(({
             {/* Right: action buttons */}
             <View style={styles.bottomBtns}>
               <TouchableOpacity style={styles.bottomBtn} onPress={() => setShowEpisodes(true)} activeOpacity={0.7}>
-                <Text style={styles.bottomBtnIcon}>{'\u{1F4CB}'}</Text>
+                <Text style={styles.bottomBtnIcon}>{'\u2630'}</Text>
                 <Text style={styles.bottomBtnLabel}>{'\u9009\u96C6'}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.bottomBtn} onPress={() => setShowSpeedSelector(true)} activeOpacity={0.7}>
-                <Text style={styles.bottomBtnIcon}>{'\u{26A1}'}</Text>
-                <Text style={styles.bottomBtnLabel}>{playbackSpeed === 1 ? '1x' : `${playbackSpeed}x`}</Text>
+                <Text style={styles.bottomBtnIcon}>{playbackSpeed === 1 ? '\u25B6' : `${playbackSpeed}x`}</Text>
+                <Text style={styles.bottomBtnLabel}>{'\u901F\u5EA6'}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.bottomBtn} onPress={() => setShowAdReward(true)} activeOpacity={0.7}>
-                <Text style={[styles.bottomBtnIcon, styles.adBtnIcon]}>{'\u{1F680}'}</Text>
+                <Text style={[styles.bottomBtnIcon, styles.adBtnIcon]}>{'\u2605'}</Text>
                 <Text style={[styles.bottomBtnLabel, styles.adBtnLabel]}>{'\u514D\u8D39'}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.bottomBtn} onPress={handleShare} activeOpacity={0.7}>
-                <Text style={styles.bottomBtnIcon}>{'\u{1F4E4}'}</Text>
+                <Text style={styles.bottomBtnIcon}>{'\u21C4'}</Text>
                 <Text style={styles.bottomBtnLabel}>{'\u5206\u4EAB'}</Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Danmaku input (inline) */}
-          {showDanmakuInput && (
-            <View style={styles.danmakuInputRow}>
-              <TextInput
-                style={styles.danmakuInput}
-                placeholder="Send a danmaku..."
-                placeholderTextColor="rgba(255,255,255,0.3)"
-                value={danmakuInput}
-                onChangeText={setDanmakuInput}
-                maxLength={50}
-                autoFocus
-                onSubmitEditing={handleSendDanmaku}
-              />
-              <TouchableOpacity style={styles.danmakuSendBtn} onPress={handleSendDanmaku} activeOpacity={0.7}>
-                <Text style={styles.danmakuSendText}>Send</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+          {/* Danmaku input (always visible) */}
+          <View style={styles.danmakuInputRow}>
+            <TextInput
+              style={styles.danmakuInput}
+              placeholder="发个弹幕..."
+              placeholderTextColor="rgba(255,255,255,0.3)"
+              value={danmakuInput}
+              onChangeText={setDanmakuInput}
+              maxLength={50}
+              onSubmitEditing={handleSendDanmaku}
+              returnKeyType="send"
+            />
+            <TouchableOpacity style={styles.danmakuSendBtn} onPress={handleSendDanmaku} activeOpacity={0.7}>
+              <Text style={styles.danmakuSendText}>{'\u53D1\u9001'}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
@@ -505,11 +495,12 @@ const SwipeVideoItem: React.FC<Props> = memo(({
         onClaimed={async (points) => {
           try {
             const result = await adRewardService.claimReward(data.drama_id, data.id);
-            Alert.alert('Reward Claimed!', `+${result.points} points added! Balance: ${result.balance}`);
+            Alert.alert('奖励领取成功!', `+${result.points} 积分已到账! 余额: ${result.balance}`);
             // Refresh wallet to update points balance
             loadPoints();
           } catch (err: any) {
-            Alert.alert('Error', err.response?.data?.message || 'Failed to claim reward');
+            const msg = err?.response?.data?.message || err?.message || 'Failed to claim reward';
+            Alert.alert('领取失败', msg);
           }
           setShowAdReward(false);
         }}
@@ -522,8 +513,7 @@ const SwipeVideoItem: React.FC<Props> = memo(({
         episodeId={data.id}
         onClose={() => {
           setShowComments(false);
-          // Resume playback after closing comments
-          setIsPlaying(wasPlayingBefore);
+          setIsPlaying(true);
         }}
       />
 
@@ -577,11 +567,7 @@ const styles = StyleSheet.create({
   retryText: { color: '#FFF', fontSize: 15, fontWeight: '600' },
 
   // Right actions (Hongguo style)
-  rightActions: { position: 'absolute', right: 10, bottom: H * 0.25, alignItems: 'center' },
-  dramaCover: { width: 48, height: 48, borderRadius: 8, overflow: 'hidden', marginBottom: 4, borderWidth: 2, borderColor: '#FFF' },
-  dramaCoverImg: { width: '100%', height: '100%', resizeMode: 'cover' as const },
-  dramaCoverLabel: { color: '#FFF', fontSize: 11, fontWeight: '600', marginTop: 2, maxWidth: 56, textAlign: 'center' },
-  actionSpacing: { height: 10 },
+  rightActions: { position: 'absolute', right: 10, bottom: H * 0.28, alignItems: 'center' },
   actionBtn: { alignItems: 'center', marginBottom: 20 },
   actionIcon: { fontSize: 30, color: '#FFF' },
   actionIconActive: { color: COLORS.primaryLight },
@@ -608,7 +594,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 4,
     backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 14,
   },
-  bottomBtnIcon: { fontSize: 16, color: '#FFF' },
+  bottomBtnIcon: { fontSize: 20, color: '#FFF' },
   bottomBtnLabel: { fontSize: 10, color: 'rgba(255,255,255,0.8)', fontWeight: '500', marginTop: 1 },
   adBtnIcon: { color: COLORS.gold },
   adBtnLabel: { color: COLORS.gold },
