@@ -1,11 +1,13 @@
 // ===== Drama Card Component =====
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { getMediaUrl } from '../../services/api';
-import { COLORS, SPACING, GENRE_COLORS } from '../../utils/constants';
+import { interactionService } from '../../services/interaction.service';
+import { COLORS, GENRE_COLORS } from '../../utils/constants';
 import { formatNumber } from '../../utils/format';
+import { scale, rf } from '../../utils/responsive';
 import type { Drama } from '../../types';
 
 interface Props {
@@ -16,16 +18,28 @@ export const DramaCard: React.FC<Props> = ({ drama }) => {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const coverUrl = getMediaUrl(drama.cover_image);
+  const [isFavorited, setIsFavorited] = useState(false);
 
   const onPress = () => {
-    // Short press -> open TikTok-style swipe player
     (navigation.navigate as any)('SwipePlayer', { dramaId: drama.id });
   };
 
   const onLongPress = () => {
-    // Long press -> open drama detail page
     (navigation.navigate as any)('DramaDetail', { dramaId: drama.id });
   };
+
+  const handleFavorite = useCallback(async (e: any) => {
+    e?.stopPropagation?.();
+    try {
+      if (isFavorited) {
+        await interactionService.removeFavorite(drama.id, 'favorite');
+        setIsFavorited(false);
+      } else {
+        await interactionService.addFavorite(drama.id, 'favorite');
+        setIsFavorited(true);
+      }
+    } catch (_) {}
+  }, [drama.id, isFavorited]);
 
   const genreColor = GENRE_COLORS[drama.genre.toLowerCase()] || COLORS.primary;
 
@@ -39,6 +53,13 @@ export const DramaCard: React.FC<Props> = ({ drama }) => {
       <View style={[styles.genreBadge, { backgroundColor: genreColor }]}>
         <Text style={styles.genreText}>{drama.genre}</Text>
       </View>
+      <TouchableOpacity
+        style={styles.favBtn}
+        onPress={handleFavorite}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <Text style={[styles.favIcon, isFavorited && styles.favIconActive]}>{isFavorited ? '\u2605' : '\u2606'}</Text>
+      </TouchableOpacity>
       <View style={styles.info}>
         <Text style={styles.title} numberOfLines={1}>{drama.title}</Text>
         <Text style={styles.meta}>
@@ -51,28 +72,40 @@ export const DramaCard: React.FC<Props> = ({ drama }) => {
 
 const styles = StyleSheet.create({
   card: {
-    flex: 1,
-    margin: SPACING.xs,
-    borderRadius: 12,
+    width: '48%',
+    borderRadius: scale(10),
     overflow: 'hidden',
     backgroundColor: COLORS.surface,
     position: 'relative',
   },
   cover: {
     width: '100%',
-    aspectRatio: 2 / 3,
+    aspectRatio: 3 / 4,
     backgroundColor: COLORS.secondaryContainer,
   },
   genreBadge: {
     position: 'absolute',
-    top: 8,
-    left: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+    top: scale(6),
+    left: scale(6),
+    paddingHorizontal: scale(6),
+    paddingVertical: scale(2),
+    borderRadius: scale(6),
   },
-  genreText: { color: '#FFF', fontSize: 11, fontWeight: '600' },
-  info: { padding: 8 },
-  title: { color: COLORS.onSurface, fontSize: 14, fontWeight: '500' },
-  meta: { color: COLORS.onSurfaceVariant, fontSize: 12, marginTop: 2 },
+  genreText: { color: '#FFF', fontSize: rf(10), fontWeight: '600' },
+  favBtn: {
+    position: 'absolute',
+    top: scale(6),
+    right: scale(6),
+    width: scale(28),
+    height: scale(28),
+    borderRadius: scale(14),
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  favIcon: { fontSize: rf(16), color: '#FFF' },
+  favIconActive: { color: COLORS.gold },
+  info: { padding: scale(6) },
+  title: { color: COLORS.onSurface, fontSize: rf(13), fontWeight: '500' },
+  meta: { color: COLORS.onSurfaceVariant, fontSize: rf(11), marginTop: scale(2) },
 });

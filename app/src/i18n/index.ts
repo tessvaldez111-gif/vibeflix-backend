@@ -4,19 +4,21 @@ import { initReactI18next } from 'react-i18next';
 import * as Localization from 'expo-localization';
 // Simple storage for language preference (Web + Native compatible)
 const langStorage = {
-  getItem: async (key: string) => {
+  getItem: async (key: string): Promise<string | null> => {
     try {
       if (typeof window !== 'undefined') return localStorage.getItem(key);
-      const { MMKV } = await import('react-native-mmkv');
-      const mmkv = new MMKV();
-      return mmkv.getString(key);
+      const storage = await import('react-native-mmkv');
+      const MMKVClass = storage.default || storage.createMMKV;
+      const mmkv = new MMKVClass();
+      return mmkv.getString(key) ?? null;
     } catch { return null; }
   },
   setItem: async (key: string, value: string) => {
     try {
       if (typeof window !== 'undefined') { localStorage.setItem(key, value); return; }
-      const { MMKV } = await import('react-native-mmkv');
-      const mmkv = new MMKV();
+      const storage = await import('react-native-mmkv');
+      const MMKVClass = storage.default || storage.createMMKV;
+      const mmkv = new MMKVClass();
       mmkv.set(key, value);
     } catch { /* ignore */ }
   },
@@ -54,7 +56,7 @@ const detectDeviceLanguage = (): string => {
   const locales = Localization.getLocales();
   if (locales && locales.length > 0) {
     const langCode = locales[0].languageCode;
-    if (resources[langCode]) return langCode;
+    if (langCode && resources[langCode as keyof typeof resources]) return langCode;
   }
   return 'en';
 };
@@ -63,7 +65,7 @@ const detectDeviceLanguage = (): string => {
 const getSavedLanguage = async (): Promise<string> => {
   try {
     const saved = await langStorage.getItem(LANG_KEY);
-    if (saved && resources[saved]) return saved;
+    if (saved && resources[saved as keyof typeof resources]) return saved;
   } catch {
     // ignore
   }

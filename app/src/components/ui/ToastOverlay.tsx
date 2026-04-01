@@ -1,7 +1,8 @@
 // ===== Toast Overlay Component (iOS) =====
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import { COLORS } from '../../utils/constants';
+import { rf, rw } from '../../utils/responsive';
 
 interface ToastOverlayProps {
   visible: boolean;
@@ -10,6 +11,8 @@ interface ToastOverlayProps {
 }
 
 export const ToastOverlay: React.FC<ToastOverlayProps> = ({ visible, message, type = 'default' }) => {
+  const { width: windowWidth } = useWindowDimensions();
+
   if (!visible) return null;
 
   const bgColor = type === 'error' ? COLORS.error
@@ -21,8 +24,8 @@ export const ToastOverlay: React.FC<ToastOverlayProps> = ({ visible, message, ty
     : COLORS.outline;
 
   return (
-    <View style={styles.container} pointerEvents="none">
-      <View style={[styles.toast, { backgroundColor: bgColor, borderColor }]}>
+    <View style={[styles.container, { top: rw(8) }]} pointerEvents="none">
+      <View style={[styles.toast, { backgroundColor: bgColor, borderColor, width: windowWidth * 0.8 }]}>
         <Text style={styles.text} numberOfLines={2}>{message}</Text>
       </View>
     </View>
@@ -32,7 +35,6 @@ export const ToastOverlay: React.FC<ToastOverlayProps> = ({ visible, message, ty
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 60,
     left: 0,
     right: 0,
     alignItems: 'center',
@@ -43,11 +45,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 24,
     borderWidth: 1,
-    width: Dimensions.get('window').width * 0.8,
   },
   text: {
     color: '#FFF',
-    fontSize: 14,
+    fontSize: rf(14),
     textAlign: 'center',
   },
 });

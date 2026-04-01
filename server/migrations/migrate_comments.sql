@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS ad_reward_records (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 5. Add ad_reward_points setting
-INSERT INTO system_settings (`key`, `value`, description) VALUES
+INSERT INTO system_settings (`key`, `value`, description`) VALUES
 ('ad_reward_points', '20', 'Points earned per ad watch')
 ON DUPLICATE KEY UPDATE `value` = VALUES(`value`);
 

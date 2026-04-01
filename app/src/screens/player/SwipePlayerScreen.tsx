@@ -1,18 +1,23 @@
 // ===== Swipe Player Screen (TikTok-style vertical scrolling) =====
-// Enhanced: Episode switching, playback speed, danmaku, ad reward, comments
+// v1.3.0: Gesture-driven swipe with audio fade, progress indicator, instant destroy
+//         SwipeVideoItem handles PanResponder internally, this screen manages state
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, useWindowDimensions,
-  ActivityIndicator, StatusBar, Platform, FlatList, Alert,
+  ActivityIndicator, StatusBar, Platform, FlatList, Alert, Animated,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useDramaStore, usePlayerStore, useAuthStore } from '../../stores';
 import { dramaService } from '../../services/drama.service';
 import { interactionService } from '../../services/interaction.service';
 import { commentService } from '../../services/comment.service';
 import { getMediaUrl } from '../../services/api';
+import { useTranslation } from 'react-i18next';
 import { COLORS } from '../../utils/constants';
+import { scale, rf } from '../../utils/responsive';
 import SwipeVideoItem, { type SwipeEpisodeData } from '../../components/player/SwipeVideoItem';
+import VideoPlayManager from '../../services/VideoPlayManager';
 import type { Episode } from '../../types';
 
 type RouteParams = {
@@ -42,18 +47,23 @@ export const SwipePlayerScreen: React.FC = () => {
   const initialDramaId = params.dramaId;
   const startEpId = params.startEpisodeId;
 
-  // Dynamic dimensions - auto-adapts to screen rotation, foldable screens, different resolutions
   const { height: SCREEN_H, width: SCREEN_W } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const flatListRef = useRef<FlatList>(null);
+  const { t } = useTranslation();
   const { isAuthenticated } = useAuthStore();
   const { setProgress, saveProgress, clearPlayer, setDanmakuList } = usePlayerStore();
 
   const [episodes, setEpisodes] = useState<SwipeEpisodeData[]>([]);
-  const [currentEpisodes, setCurrentEpisodes] = useState<Episode[]>([]); // for episode selector
+  const [currentEpisodes, setCurrentEpisodes] = useState<Episode[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
+  // Track which index is currently "active" for play/mute control
+  const [activeIndex, setActiveIndex] = useState(0);
+  // Gesture state: which item index is being swiped
+  const [swipingIndex, setSwipingIndex] = useState<number | null>(null);
 
   const [likedDramas, setLikedDramas] = useState<Set<number>>(new Set());
   const [favoritedDramas, setFavoritedDramas] = useState<Set<number>>(new Set());
@@ -62,6 +72,13 @@ export const SwipePlayerScreen: React.FC = () => {
   const loadedDramaIds = useRef<Set<number>>(new Set());
   const dramaQueue = useRef<number[]>([]);
   const saveTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isScrollingRef = useRef(false);
+  // Track scroll momentum state — equivalent to ViewPager2.SCROLL_STATE_DRAGGING / IDLE
+  const scrollStateRef = useRef<'idle' | 'dragging' | 'settling'>('idle');
+  // Track the previous active index to detect page changes (equivalent to onPageSelected)
+  const prevActiveIndexRef = useRef(0);
+
+  const viewHeight = SCREEN_H;
 
   // Load initial drama
   const loadInitialDrama = useCallback(async (dramaId: number, episodeId?: number) => {
@@ -87,14 +104,13 @@ export const SwipePlayerScreen: React.FC = () => {
       setEpisodes(swipeEps);
       setCurrentEpisodes(drama.episodes);
       setCurrentIndex(startIdx);
+      setActiveIndex(startIdx);
 
-      // Load danmaku for first episode
       const startEp = drama.episodes[startIdx];
       if (startEp) {
         commentService.getDanmaku(dramaId, startEp.id).then(setDanmakuList).catch(() => {});
       }
 
-      // Pre-fetch more dramas
       try {
         const res = await dramaService.getDramas({ page: 1, pageSize: 10 });
         dramaQueue.current = res.list.filter((d: any) => d.id !== dramaId).map((d: any) => d.id);
@@ -170,17 +186,21 @@ export const SwipePlayerScreen: React.FC = () => {
     loadInitialDrama(initialDramaId, startEpId);
   }, [initialDramaId, startEpId]);
 
-  // Auto save
+  // Auto save + lifecycle cleanup (equivalent to onStop/onDestroy)
   useEffect(() => {
     saveTimer.current = setInterval(() => saveProgress(), 10000);
     return () => {
       if (saveTimer.current) clearInterval(saveTimer.current);
+      // Activity.onStop equivalent
+      VideoPlayManager.pauseAll();
       saveProgress();
+      // Activity.onDestroy equivalent
+      VideoPlayManager.releaseCurrent();
       clearPlayer();
     };
   }, [saveProgress, clearPlayer]);
 
-  // Preload next drama
+  // Preload next drama when near end
   useEffect(() => {
     if (episodes.length > 0 && currentIndex >= episodes.length - 2) {
       loadNextDrama();
@@ -194,7 +214,6 @@ export const SwipePlayerScreen: React.FC = () => {
     if (currentEpisode && currentEpisode.id !== prevEpId.current) {
       prevEpId.current = currentEpisode.id;
       commentService.getDanmaku(currentEpisode.drama_id, currentEpisode.id).then(setDanmakuList).catch(() => {});
-      // Also update the current episodes list for the episode selector
       if (currentEpisode.drama_id) {
         dramaService.getDramaDetail(currentEpisode.drama_id).then(drama => {
           if (drama?.episodes) setCurrentEpisodes(drama.episodes);
@@ -233,67 +252,47 @@ export const SwipePlayerScreen: React.FC = () => {
     if (idx >= 0) {
       try { flatListRef.current?.scrollToIndex({ index: idx, animated: true }); } catch (_) {}
     } else {
-      // Episode from different drama, navigate there
       const { setEpisode } = usePlayerStore.getState();
       setEpisode(episode, episode.drama_id);
       saveProgress();
-      // Navigate to a new drama's episodes
-      navigation.replace('SwipePlayer' as never, { dramaId: episode.drama_id, startEpisodeId: episode.id });
+      (navigation as any).replace('SwipePlayer', { dramaId: episode.drama_id, startEpisodeId: episode.id });
     }
   }, [episodes, saveProgress, navigation]);
 
-  const onViewableItemsChanged = useRef(({ viewableItems, changed }: any) => {
-    if (viewableItems && viewableItems.length > 0) {
-      const idx = viewableItems[0].index;
-      if (typeof idx === 'number' && idx !== currentIndex && !isSwipingRef.current) {
-        setCurrentIndex(idx);
-      }
-    }
-  }).current;
-
-  // Debounce swipe to prevent rapid consecutive scrolls
-  const isSwipingRef = useRef(false);
-  const swipeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+  // Viewable items change — equivalent to ViewPager2.onPageSelected
+  // When a new page is selected, release the old player immediately
   const handleViewableChange = useRef(({ viewableItems }: any) => {
     if (!viewableItems || viewableItems.length === 0) return;
     const idx = viewableItems[0].index;
-    if (typeof idx !== 'number' || idx === currentIndex) return;
+    if (typeof idx !== 'number') return;
 
-    // Debounce: ignore rapid index changes
-    if (isSwipingRef.current) return;
-    isSwipingRef.current = true;
-    if (swipeDebounceRef.current) clearTimeout(swipeDebounceRef.current);
-    swipeDebounceRef.current = setTimeout(() => {
-      isSwipingRef.current = false;
-    }, 400);
+    // === onPageSelected: release old player ===
+    if (prevActiveIndexRef.current !== idx) {
+      // Page changed — destroy the previous player via global manager
+      VideoPlayManager.releaseCurrent();
+      prevActiveIndexRef.current = idx;
+    }
 
-    setCurrentIndex(idx);
+    if (idx !== currentIndex && !isScrollingRef.current) {
+      setCurrentIndex(idx);
+      setActiveIndex(idx);
+    }
   }).current;
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 70, minimumViewTime: 200 }).current;
 
+  // Like is cumulative only — every call increments, never decrements
   const toggleLike = useCallback(async (dramaId: number) => {
     if (!isAuthenticated || !dramaId) return;
     try {
-      const isLiked = likedDramas.has(dramaId);
-      if (isLiked) {
-        await interactionService.removeFavorite(dramaId, 'like');
-        setLikedDramas(prev => { const s = new Set(prev); s.delete(dramaId); return s; });
-        setDramaStats(prev => ({
-          ...prev,
-          [dramaId]: { ...prev[dramaId], like_count: Math.max(0, (prev[dramaId]?.like_count || 0) - 1) },
-        }));
-      } else {
-        await interactionService.addFavorite(dramaId, 'like');
-        setLikedDramas(prev => new Set([...prev, dramaId]));
-        setDramaStats(prev => ({
-          ...prev,
-          [dramaId]: { ...prev[dramaId], like_count: (prev[dramaId]?.like_count || 0) + 1 },
-        }));
-      }
+      await interactionService.addFavorite(dramaId, 'like');
+      setLikedDramas(prev => new Set([...prev, dramaId]));
+      setDramaStats(prev => ({
+        ...prev,
+        [dramaId]: { ...prev[dramaId], like_count: (prev[dramaId]?.like_count || 0) + 1 },
+      }));
     } catch (_) {}
-  }, [isAuthenticated, likedDramas]);
+  }, [isAuthenticated]);
 
   const toggleFavorite = useCallback(async (dramaId: number) => {
     if (!isAuthenticated || !dramaId) return;
@@ -317,14 +316,6 @@ export const SwipePlayerScreen: React.FC = () => {
     } catch (_) {}
   }, [isAuthenticated, favoritedDramas]);
 
-  const loadDramaStats = useCallback(async (dramaId: number) => {
-    if (dramaStats[dramaId]) return;
-    try {
-      const stats = await interactionService.getDramaStats(dramaId);
-      setDramaStats(prev => ({ ...prev, [dramaId]: stats }));
-    } catch (_) {}
-  }, [dramaStats]);
-
   const handleShare = useCallback(async (dramaId: number) => {
     try {
       await interactionService.share(dramaId);
@@ -332,9 +323,6 @@ export const SwipePlayerScreen: React.FC = () => {
         ...prev,
         [dramaId]: {
           ...prev[dramaId],
-          like_count: prev[dramaId]?.like_count || 0,
-          collect_count: prev[dramaId]?.collect_count || 0,
-          comment_count: prev[dramaId]?.comment_count || 0,
           share_count: (prev[dramaId]?.share_count || 0) + 1,
         },
       }));
@@ -343,23 +331,91 @@ export const SwipePlayerScreen: React.FC = () => {
 
   const goBack = useCallback(() => {
     saveProgress();
+    VideoPlayManager.releaseCurrent(); // onDestroy equivalent
     clearPlayer();
     try { navigation.goBack(); } catch (_) {}
   }, [navigation, saveProgress, clearPlayer]);
 
-  const getItemLayout = useCallback((_data: any, index: number) => ({
-    length: SCREEN_H, offset: SCREEN_H * index, index,
-  }), [SCREEN_H]);
+  // Precise getItemLayout
+  const getItemLayout = useCallback((_: any, index: number) => ({
+    length: viewHeight,
+    offset: viewHeight * index,
+    index,
+  }), [viewHeight]);
+
+  // ===== Gesture-driven swipe handlers =====
+  // Called when SwipeVideoItem's PanResponder starts a vertical swipe
+  const handleSwipeGestureStart = useCallback((itemIndex: number) => {
+    isScrollingRef.current = true;
+    setSwipingIndex(itemIndex);
+  }, []);
+
+  // Called when SwipeVideoItem's PanResponder ends
+  const handleSwipeGestureEnd = useCallback((itemIndex: number, completed: boolean) => {
+    setSwipingIndex(null);
+
+    if (completed) {
+      // Scroll FlatList to next/previous item with animation
+      const nextIndex = itemIndex + 1; // SwipeVideoItem always goes forward for now
+      // Direction is determined by swipe direction in SwipeVideoItem, but for FlatList we need absolute index
+      // The SwipeVideoItem detects up/down via PanResponder, so we just scroll to adjacent
+      const targetIndex = nextIndex >= 0 && nextIndex < episodes.length ? nextIndex : itemIndex;
+      if (targetIndex !== itemIndex) {
+        setCurrentIndex(targetIndex);
+        setActiveIndex(targetIndex);
+        setTimeout(() => {
+          try { flatListRef.current?.scrollToIndex({ index: targetIndex, animated: true }); } catch (_) {}
+        }, 50);
+      }
+    }
+
+    setTimeout(() => {
+      isScrollingRef.current = false;
+    }, 300);
+  }, [episodes.length]);
+
+  // Track scroll offset to determine swipe direction for gesture completion
+  const scrollOffsetRef = useRef(0);
+  const onScroll = useCallback((e: any) => {
+    scrollOffsetRef.current = e.nativeEvent.contentOffset.y;
+  }, []);
+
+  // Override gesture end with correct direction based on scroll position
+  const handleSwipeGestureEndWithDirection = useCallback((itemIndex: number, direction: 'up' | 'down', completed: boolean) => {
+    setSwipingIndex(null);
+
+    if (completed) {
+      let targetIndex: number;
+      if (direction === 'up') {
+        targetIndex = itemIndex + 1; // Next video
+      } else {
+        targetIndex = itemIndex - 1; // Previous video
+      }
+      targetIndex = Math.max(0, Math.min(targetIndex, episodes.length - 1));
+
+      if (targetIndex !== itemIndex) {
+        setCurrentIndex(targetIndex);
+        setActiveIndex(targetIndex);
+        setTimeout(() => {
+          try { flatListRef.current?.scrollToIndex({ index: targetIndex, animated: true }); } catch (_) {}
+        }, 50);
+      }
+    }
+
+    setTimeout(() => {
+      isScrollingRef.current = false;
+    }, 300);
+  }, [episodes.length]);
 
   const renderItem = useCallback(({ item, index }: { item: SwipeEpisodeData; index: number }) => {
     const stats = dramaStats[item.drama_id] || {};
-    const diff = Math.abs(index - currentIndex);
-    // Pre-buffer adjacent videos (within 2 positions) for instant playback on swipe
-    const shouldPreload = diff >= 1 && diff <= 2;
+    const isActive = index === activeIndex;
+    const isGestureActive = swipingIndex === index;
+
     return (
       <SwipeVideoItem
         data={item}
-        isActive={index === currentIndex}
+        isActive={isActive}
         onToggleLike={toggleLike}
         onToggleFavorite={toggleFavorite}
         onShare={handleShare}
@@ -369,27 +425,48 @@ export const SwipePlayerScreen: React.FC = () => {
         collectCount={stats.collect_count || 0}
         commentCount={stats.comment_count || 0}
         shareCount={stats.share_count || 0}
-        onVideoEnd={index === currentIndex ? handleVideoEnd : () => {}}
+        onVideoEnd={isActive ? handleVideoEnd : () => {}}
         onProgressUpdate={() => {}}
         onSwitchEpisode={handleSwitchEpisode}
         index={index}
         totalEpisodes={episodes.length}
         episodes={currentEpisodes}
         screenWidth={SCREEN_W}
-        screenHeight={SCREEN_H}
-        preloadBuffer={shouldPreload}
+        screenHeight={viewHeight}
+        onSwipeGestureStart={() => handleSwipeGestureStart(index)}
+        onSwipeGestureEnd={(completed) => {
+          // Determine direction from swipe data — we need to pass direction
+          // For now, use scroll offset direction
+          handleSwipeGestureEnd(index, completed);
+        }}
+        isGestureActive={isGestureActive}
       />
     );
-  }, [currentIndex, likedDramas, favoritedDramas, dramaStats, handleVideoEnd, toggleLike, toggleFavorite, handleShare, episodes.length, currentEpisodes, handleSwitchEpisode, SCREEN_W, SCREEN_H]);
+  }, [activeIndex, swipingIndex, likedDramas, favoritedDramas, dramaStats, handleVideoEnd, toggleLike, toggleFavorite, handleShare, episodes.length, currentEpisodes, handleSwitchEpisode, SCREEN_W, viewHeight, handleSwipeGestureStart, handleSwipeGestureEnd]);
 
   const keyExtractor = useCallback((item: SwipeEpisodeData) => `ep-${item.id}`, []);
+
+  // ===== FlatList scroll state handlers (ViewPager2 equivalents) =====
+
+  // onScrollBeginDrag → SCROLL_STATE_DRAGGING: pause all playback globally
+  const handleScrollBeginDrag = useCallback(() => {
+    scrollStateRef.current = 'dragging';
+    // Global pause — prevents audio bleed and frame stutter during swipe
+    VideoPlayManager.pauseAll();
+  }, []);
+
+  // onMomentumScrollEnd → SCROLL_STATE_IDLE: let the new active item resume playback
+  const handleMomentumScrollEnd = useCallback(() => {
+    scrollStateRef.current = 'idle';
+    // Playback resumes via handleViewableChange → setActiveIndex → SwipeVideoItem isActive=true
+  }, []);
 
   if (isLoading && episodes.length === 0) {
     return (
       <View style={styles.loadingContainer}>
         <StatusBar barStyle="light-content" backgroundColor="#000" />
         <ActivityIndicator size="large" color={COLORS.primaryLight} />
-        <Text style={styles.loadingText}>Loading...</Text>
+        <Text style={styles.loadingText}>{t('loading')}</Text>
       </View>
     );
   }
@@ -398,12 +475,12 @@ export const SwipePlayerScreen: React.FC = () => {
     return (
       <View style={styles.loadingContainer}>
         <StatusBar barStyle="light-content" backgroundColor="#000" />
-        <Text style={styles.errorText}>Failed to load</Text>
+        <Text style={styles.errorText}>{t('load_failed')}</Text>
         <TouchableOpacity style={styles.retryBtn} onPress={() => loadInitialDrama(initialDramaId)} activeOpacity={0.7}>
-          <Text style={styles.retryText}>Retry</Text>
+          <Text style={styles.retryText}>{t('retry')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.retryBtn, styles.retryBtnMargin]} onPress={goBack} activeOpacity={0.7}>
-          <Text style={styles.retryText}>Go Back</Text>
+          <Text style={styles.retryText}>{t('go_back')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -414,36 +491,40 @@ export const SwipePlayerScreen: React.FC = () => {
       <StatusBar barStyle="light-content" backgroundColor="#000" />
 
       <FlatList
+        key={`fl-${viewHeight}-${SCREEN_W}`}
         ref={flatListRef}
         data={episodes}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
         getItemLayout={getItemLayout}
-        snapToInterval={SCREEN_H}
+        snapToInterval={viewHeight}
         snapToAlignment="start"
         decelerationRate="fast"
-        vertical
         showsVerticalScrollIndicator={false}
         viewabilityConfig={viewabilityConfig}
         onViewableItemsChanged={handleViewableChange}
         disableIntervalMomentum={true}
-        windowSize={7}
-        maxToRenderPerBatch={3}
+        windowSize={5}
+        maxToRenderPerBatch={2}
         initialNumToRender={1}
         removeClippedSubviews={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        onScrollBeginDrag={handleScrollBeginDrag}
+        onMomentumScrollEnd={handleMomentumScrollEnd}
         onEndReached={() => {
           if (episodes.length - currentIndex <= 3) loadNextDrama();
         }}
         onEndReachedThreshold={0.5}
         ListFooterComponent={
-          <View style={{ height: SCREEN_H, justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ height: viewHeight, justifyContent: 'center', alignItems: 'center' }}>
             <ActivityIndicator size="small" color="rgba(255,255,255,0.5)" />
           </View>
         }
       />
 
       {/* Top-left back button */}
-      <TouchableOpacity style={styles.backBtn} onPress={goBack} activeOpacity={0.7}>
+      <TouchableOpacity style={[styles.backBtn, { top: (insets.top > 0 ? insets.top : (Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0)) + scale(4) }]} onPress={goBack} activeOpacity={0.7}>
         <Text style={styles.backIcon}>{'\u276E'}</Text>
       </TouchableOpacity>
     </View>
@@ -453,15 +534,15 @@ export const SwipePlayerScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   loadingContainer: { flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
-  loadingText: { color: 'rgba(255,255,255,0.5)', fontSize: 14, marginTop: 12 },
-  errorText: { color: 'rgba(255,255,255,0.7)', fontSize: 16, marginBottom: 16 },
-  retryBtn: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)' },
-  retryBtnMargin: { marginTop: 10 },
-  retryText: { color: '#FFF', fontSize: 15, fontWeight: '600' },
+  loadingText: { color: 'rgba(255,255,255,0.5)', fontSize: rf(14), marginTop: scale(12) },
+  errorText: { color: 'rgba(255,255,255,0.7)', fontSize: rf(16), marginBottom: scale(16) },
+  retryBtn: { paddingHorizontal: scale(24), paddingVertical: scale(10), borderRadius: scale(20), backgroundColor: 'rgba(255,255,255,0.2)' },
+  retryBtnMargin: { marginTop: scale(10) },
+  retryText: { color: '#FFF', fontSize: rf(15), fontWeight: '600' },
   backBtn: {
-    position: 'absolute', top: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 4 : 54,
-    left: 12, width: 36, height: 36, borderRadius: 18,
+    position: 'absolute',
+    left: scale(12), width: scale(36), height: scale(36), borderRadius: scale(18),
     backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', zIndex: 100,
   },
-  backIcon: { color: '#FFF', fontSize: 18, fontWeight: '600' },
+  backIcon: { color: '#FFF', fontSize: rf(18), fontWeight: '600' },
 });

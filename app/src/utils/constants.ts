@@ -39,7 +39,7 @@ export const COLORS = {
   tabInactive: '#666666',    // Inactive tab color
 };
 
-// Theme Spacing
+// Theme Spacing (static - for backward compatibility, prefer getSpacing() from responsive.ts)
 export const SPACING = {
   xs: 4,
   sm: 8,

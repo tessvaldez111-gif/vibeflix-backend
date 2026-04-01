@@ -5,7 +5,8 @@ import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
-import { COLORS, SPACING } from '../../utils/constants';
+import { COLORS } from '../../utils/constants';
+import { rf, scale, getSpacing } from '../../utils/responsive';
 
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -15,6 +16,9 @@ export const LoginScreen: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Dynamic spacing
+  const sp = getSpacing();
 
   const onLogin = async () => {
     if (!username.trim() || !password.trim()) {
@@ -41,14 +45,18 @@ export const LoginScreen: React.FC = () => {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.inner}>
+      <View style={[styles.inner, { paddingHorizontal: sp.xl }]}>
         <Text style={styles.logo}>{t('app_name')}</Text>
         <Text style={styles.subtitle}>{t('login_to_continue')}</Text>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? <Text style={[styles.error, { marginBottom: sp.sm }]}>{error}</Text> : null}
 
         <TextInput
-          style={styles.input}
+          style={[styles.input, {
+            paddingHorizontal: sp.md,
+            paddingVertical: sp.md,
+            marginBottom: sp.md,
+          }]}
           placeholder={t('username')}
           placeholderTextColor={COLORS.onSurfaceVariant}
           value={username}
@@ -58,7 +66,11 @@ export const LoginScreen: React.FC = () => {
         />
 
         <TextInput
-          style={styles.input}
+          style={[styles.input, {
+            paddingHorizontal: sp.md,
+            paddingVertical: sp.md,
+            marginBottom: sp.md,
+          }]}
           placeholder={t('password')}
           placeholderTextColor={COLORS.onSurfaceVariant}
           value={password}
@@ -69,13 +81,13 @@ export const LoginScreen: React.FC = () => {
         {loading ? (
           <LoadingSpinner />
         ) : (
-          <TouchableOpacity style={styles.loginBtn} onPress={onLogin}>
+          <TouchableOpacity style={[styles.loginBtn, { paddingVertical: sp.md, marginTop: sp.sm }]} onPress={onLogin}>
             <Text style={styles.loginBtnText}>{t('sign_in')}</Text>
           </TouchableOpacity>
         )}
 
         <TouchableOpacity onPress={onRegister}>
-          <Text style={styles.registerLink}>{t('no_account')} {t('sign_up')}</Text>
+          <Text style={[styles.registerLink, { marginTop: sp.lg }]}>{t('no_account')} {t('sign_up')}</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -84,28 +96,23 @@ export const LoginScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: SPACING.xl },
-  logo: { fontSize: 36, fontWeight: 'bold', color: COLORS.primaryLight, textAlign: 'center', marginBottom: 4 },
-  subtitle: { color: COLORS.onSurfaceVariant, fontSize: 16, textAlign: 'center', marginBottom: SPACING.xl },
-  error: { color: COLORS.error, fontSize: 14, textAlign: 'center', marginBottom: SPACING.sm },
+  inner: { flex: 1, justifyContent: 'center' },
+  logo: { fontSize: rf(36), fontWeight: 'bold', color: COLORS.primaryLight, textAlign: 'center', marginBottom: scale(4) },
+  subtitle: { color: COLORS.onSurfaceVariant, fontSize: rf(16), textAlign: 'center', marginBottom: scale(32) },
+  error: { color: COLORS.error, fontSize: rf(14), textAlign: 'center' },
   input: {
     backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
+    borderRadius: scale(12),
     color: COLORS.onSurface,
-    fontSize: 16,
-    marginBottom: SPACING.md,
+    fontSize: rf(16),
     borderWidth: 1,
     borderColor: COLORS.outline,
   },
   loginBtn: {
     backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingVertical: SPACING.md,
+    borderRadius: scale(12),
     alignItems: 'center',
-    marginTop: SPACING.sm,
   },
-  loginBtnText: { color: COLORS.onPrimary, fontSize: 17, fontWeight: '600' },
-  registerLink: { color: COLORS.primaryLight, fontSize: 15, textAlign: 'center', marginTop: SPACING.lg },
+  loginBtnText: { color: COLORS.onPrimary, fontSize: rf(17), fontWeight: '600' },
+  registerLink: { color: COLORS.primaryLight, fontSize: rf(15), textAlign: 'center' },
 });

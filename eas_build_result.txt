@@ -1,0 +1,13 @@
+Resolved "production" environment for the build. Learn more: https://docs.expo.dev/eas/environment-variables/#setting-the-environment-for-your-builds
+No environment variables with visibility "Plain text" and "Sensitive" found for the "production" environment on EAS.
+android.versionCode field in app config is ignored when version source is set to remote, but this value will still be in the manifest available via expo-constants. It's recommended to remove this value from app config.
+✔ Using remote Android credentials (Expo server)
+✔ Using Keystore from configuration: Build Credentials mxhGrKal8U (default)
+Compressing project files and uploading to EAS Build. Learn more: https://expo.fyi/eas-build-archive
+- Compressing project files
+- Uploading to EAS Build (0 / 89.5 MB)
+✖ Uploading to EAS Build (128 KB / 89.5 MB)
+Failed to upload the project tarball to EAS Build
+Reason: request to https://storage.googleapis.com/turtle-v2-projects/production/56fe15cf-332a-4a6f-8a62-32cda7a225a0/b9e01270-b6ab-4058-a7c2-cb1a5b247546?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260329%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260329T044657Z&X-Goog-Expires=3600&X-Goog-SignedHeaders=host%3Bx-goog-content-length-range&X-Goog-Signature=3876dee433deede56a717636d034b75d11b260c94e97a051077971f05269075aa447b51114da887359c4db98b1bbcb460945207b68b416de8af0d8d1dbcf7abea0a96a5a7eac2a9d88916a35691ce7e22525a23ca5b314593d525a8ad51996699eb77efa6f1ff3468aa55dac8305b978c94babe66794a8b59723582ce5bd6760a0c4cbd09f6c44340a4ad8ec14ab25dca04313848ae526232d6e95712f9abb74a12ed9b67543c1798aee7d1d4a0b70e2101ff78c2d00ff6cf1029975b9dbf9ccd59c0c5c1adb79d9679bfb4bc3e81dbc1964fc44aa6a95199ac169ee1e48b4855338099854f49edd77e20d69ccdba350d1feeebfe6d252b8c466349e86ac2876 failed, reason: socket hang up
+Error: build command failed.
+Exit code: 1

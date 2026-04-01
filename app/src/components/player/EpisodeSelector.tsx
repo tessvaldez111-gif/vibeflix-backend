@@ -1,10 +1,10 @@
 // ===== Episode Selector (Bottom Sheet) =====
 import React, { memo, useRef, useEffect, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, FlatList, Animated, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, FlatList, Animated, useWindowDimensions } from 'react-native';
 import { COLORS, SPACING } from '../../utils/constants';
+import { scale, rf, rw, verticalScale } from '../../utils/responsive';
 import type { Episode } from '../../types';
 
-const { width: W } = Dimensions.get('window');
 const NUM_COLS = 5;
 
 interface Props {
@@ -16,7 +16,13 @@ interface Props {
 }
 
 const EpisodeSelector: React.FC<Props> = memo(({ visible, episodes, currentEpisodeId, onSelect, onClose }) => {
+  const { width: windowWidth } = useWindowDimensions();
   const slideAnim = useRef(new Animated.Value(500)).current;
+
+  // Dynamic episode button size based on current screen width
+  const epSize = (windowWidth - SPACING.md * 2 - (NUM_COLS - 1) * scale(10)) / NUM_COLS;
+  // Responsive max height for the episode list (30% of screen height)
+  const listMaxHeight = verticalScale(300);
 
   useEffect(() => {
     if (visible) {
@@ -37,7 +43,7 @@ const EpisodeSelector: React.FC<Props> = memo(({ visible, episodes, currentEpiso
 
     return (
       <TouchableOpacity
-        style={[styles.epBtn, isCurrent && styles.epBtnCurrent]}
+        style={[styles.epBtn, isCurrent && styles.epBtnCurrent, { width: epSize, height: epSize }]}
         onPress={() => handleSelect(item)}
         activeOpacity={0.7}
       >
@@ -61,7 +67,7 @@ const EpisodeSelector: React.FC<Props> = memo(({ visible, episodes, currentEpiso
             keyExtractor={item => `es-${item.id}`}
             numColumns={NUM_COLS}
             columnWrapperStyle={styles.row}
-            style={styles.list}
+            style={[styles.list, { maxHeight: listMaxHeight }]}
             showsVerticalScrollIndicator={false}
           />
         </Animated.View>
@@ -69,8 +75,6 @@ const EpisodeSelector: React.FC<Props> = memo(({ visible, episodes, currentEpiso
     </Modal>
   );
 });
-
-const EP_SIZE = (W - SPACING.md * 2 - (NUM_COLS - 1) * 10) / NUM_COLS;
 
 const styles = StyleSheet.create({
   backdrop: {
@@ -80,40 +84,38 @@ const styles = StyleSheet.create({
   },
   panel: {
     backgroundColor: '#1E1C28',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: scale(20),
+    borderTopRightRadius: scale(20),
     maxHeight: '55%',
     paddingHorizontal: SPACING.md,
-    paddingBottom: 24,
+    paddingBottom: scale(24),
   },
   handleRow: {
     alignItems: 'center',
-    paddingTop: 12,
-    marginBottom: 8,
+    paddingTop: scale(12),
+    marginBottom: scale(8),
   },
   handleBar: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
+    width: scale(36),
+    height: scale(4),
+    borderRadius: scale(2),
     backgroundColor: 'rgba(255,255,255,0.2)',
   },
   title: {
     color: '#FFF',
-    fontSize: 16,
+    fontSize: rf(16),
     fontWeight: '700',
-    marginBottom: 12,
+    marginBottom: scale(12),
   },
   list: {
-    maxHeight: 300,
+    // maxHeight set dynamically via inline style
   },
   row: {
-    gap: 10,
-    marginBottom: 10,
+    gap: scale(10),
+    marginBottom: scale(10),
   },
   epBtn: {
-    width: EP_SIZE,
-    height: EP_SIZE,
-    borderRadius: 10,
+    borderRadius: scale(10),
     backgroundColor: 'rgba(255,255,255,0.08)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -126,7 +128,7 @@ const styles = StyleSheet.create({
   },
   epNum: {
     color: 'rgba(255,255,255,0.7)',
-    fontSize: 15,
+    fontSize: rf(15),
     fontWeight: '600',
   },
   epNumCurrent: {
@@ -134,9 +136,9 @@ const styles = StyleSheet.create({
   },
   lockSmall: {
     position: 'absolute',
-    bottom: 2,
-    right: 4,
-    fontSize: 9,
+    bottom: scale(2),
+    right: scale(4),
+    fontSize: rf(9),
   },
 });
 

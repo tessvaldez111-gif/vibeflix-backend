@@ -46,14 +46,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     const res = await authService.login({ username, password });
     // res is flat: { id, username, nickname, avatar, role, token }
     const { token, ...user } = res;
-    set({ user: user as User, token, isAuthenticated: true });
+    set({ user: user as User, token: token!, isAuthenticated: true });
   },
 
   register: async (username, password, nickname, email, emailCode) => {
     const res = await authService.register({ username, password, nickname, email, emailCode });
     // res is flat: { id, username, nickname, avatar, role, token }
     const { token, ...user } = res;
-    set({ user: user as User, token, isAuthenticated: true });
+    set({ user: user as User, token: token!, isAuthenticated: true });
   },
 
   logout: async () => {

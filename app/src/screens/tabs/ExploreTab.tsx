@@ -4,7 +4,8 @@ import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, Activity
 import { useDramaStore } from '../../stores';
 import { DramaCard } from '../../components/drama/DramaCard';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
-import { COLORS, SPACING } from '../../utils/constants';
+import { COLORS } from '../../utils/constants';
+import { rf, scale, getSpacing } from '../../utils/responsive';
 import { useDebounce } from '../../hooks';
 import { useTranslation } from 'react-i18next';
 import type { Drama } from '../../types';
@@ -18,6 +19,9 @@ export const ExploreTab: React.FC = () => {
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
   const debouncedSearch = useDebounce(searchText, 400);
+
+  // Get dynamic spacing
+  const sp = getSpacing();
 
   // Debounced search
   useEffect(() => {
@@ -76,11 +80,18 @@ export const ExploreTab: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{t('tab_theater')}</Text>
+      <Text style={[styles.title, { paddingHorizontal: sp.md, paddingTop: sp.lg, paddingBottom: sp.sm }]}>
+        {t('tab_theater')}
+      </Text>
 
       {/* Search Input */}
       <TextInput
-        style={styles.searchInput}
+        style={[styles.searchInput, {
+          marginHorizontal: sp.md,
+          marginBottom: sp.md,
+          paddingHorizontal: sp.md,
+          paddingVertical: sp.sm,
+        }]}
         placeholder={t('search_explore')}
         placeholderTextColor={COLORS.onSurfaceVariant}
         value={searchText}
@@ -91,7 +102,7 @@ export const ExploreTab: React.FC = () => {
 
       {/* Genre Tags — hide while loading */}
       {genres.length > 0 && (
-        <View style={styles.genresRow}>
+        <View style={[styles.genresRow, { paddingHorizontal: sp.md, paddingBottom: sp.md }]}>
           <TouchableOpacity
             style={[styles.genreChip, !selectedGenre && styles.genreChipActive]}
             onPress={() => onGenrePress(null)}
@@ -119,7 +130,8 @@ export const ExploreTab: React.FC = () => {
           renderItem={renderItem}
           keyExtractor={keyExtractor}
           numColumns={2}
-          contentContainerStyle={styles.list}
+          columnWrapperStyle={styles.row}
+          contentContainerStyle={[styles.list, { paddingHorizontal: sp.md, paddingBottom: scale(80) }]}
           showsVerticalScrollIndicator={false}
           onEndReached={onLoadMore}
           onEndReachedThreshold={0.3}
@@ -141,39 +153,30 @@ export const ExploreTab: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   title: {
-    fontSize: 28,
+    fontSize: rf(28),
     fontWeight: 'bold',
     color: COLORS.onSurface,
-    paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.lg,
-    paddingBottom: SPACING.sm,
   },
   searchInput: {
-    marginHorizontal: SPACING.md,
-    marginBottom: SPACING.md,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: 12,
+    borderRadius: scale(12),
     backgroundColor: COLORS.surface,
     color: COLORS.onSurface,
-    fontSize: 15,
+    fontSize: rf(15),
     borderWidth: 1,
     borderColor: COLORS.outline,
   },
   genresRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.md,
   },
   genreChipMargin: {
-    marginRight: SPACING.sm,
-    marginBottom: SPACING.sm,
+    marginRight: scale(8),
+    marginBottom: scale(8),
   },
   genreChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingHorizontal: scale(14),
+    paddingVertical: scale(6),
+    borderRadius: scale(20),
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.outline,
@@ -182,21 +185,25 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
   },
-  genreChipText: { color: COLORS.onSurface, fontSize: 13 },
-  list: { paddingHorizontal: SPACING.md, paddingBottom: 80 },
+  genreChipText: { color: COLORS.onSurface, fontSize: rf(13) },
+  list: {},
+  row: {
+    justifyContent: 'space-between',
+    gap: scale(10),
+  },
   footer: {
-    paddingVertical: SPACING.md,
+    paddingVertical: scale(16),
     alignItems: 'center',
   },
   empty: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 100,
+    paddingTop: scale(100),
   },
-  emptyIcon: { fontSize: 40, marginBottom: SPACING.sm },
+  emptyIcon: { fontSize: rf(40), marginBottom: scale(8) },
   emptyText: {
     color: COLORS.onSurfaceVariant,
-    fontSize: 16,
+    fontSize: rf(16),
   },
 });

@@ -1,6 +1,6 @@
 // ===== Drama Detail Screen =====
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, ScrollView, Modal, Alert, Dimensions, Share } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet, ScrollView, Modal, Alert, useWindowDimensions, Share } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useDramaStore, usePlayerStore, useAuthStore, useWalletStore } from '../../stores';
@@ -9,11 +9,11 @@ import { getMediaUrl } from '../../services/api';
 import { dramaService } from '../../services/drama.service';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { useToast } from '../../hooks';
-import { COLORS, SPACING } from '../../utils/constants';
+import { COLORS } from '../../utils/constants';
 import { formatDuration, formatNumber } from '../../utils/format';
+import { scale, rf, rw, getSpacing } from '../../utils/responsive';
 import type { Episode, Drama } from '../../types';
 
-const { width: SCREEN_W } = Dimensions.get('window');
 type RouteParams = { dramaId: number };
 
 export const DramaDetailScreen: React.FC = () => {
@@ -21,6 +21,7 @@ export const DramaDetailScreen: React.FC = () => {
   const route = useRoute();
   const navigation = useNavigation();
   const { dramaId } = route.params as RouteParams;
+  const { width: SCREEN_W } = useWindowDimensions();
   const { currentDrama, isLoadingDetail, loadDramaDetail } = useDramaStore();
   const { isAuthenticated } = useAuthStore();
   const { points, loadPoints } = useWalletStore();
@@ -33,6 +34,9 @@ export const DramaDetailScreen: React.FC = () => {
   const [commentCount, setCommentCount] = useState(0);
   const [shareCount, setShareCount] = useState(0);
   const [loadingPopular, setLoadingPopular] = useState(true);
+
+  // Dynamic spacing
+  const sp = getSpacing();
 
   useEffect(() => {
     if (currentDrama?.id !== dramaId) {
@@ -162,10 +166,10 @@ export const DramaDetailScreen: React.FC = () => {
 
     return (
       <TouchableOpacity
-        style={styles.episodeCard}
+        style={[styles.episodeCard, { marginHorizontal: sp.md, marginBottom: scale(8), padding: sp.md }]}
         onPress={() => onPlayEpisode(item)}
       >
-        <View style={[styles.episodeNumber, isLocked && styles.episodeNumberLocked]}>
+        <View style={[styles.episodeNumber, isLocked && styles.episodeNumberLocked, { marginRight: sp.md }]}>
           <Text style={styles.episodeNumberText}>{item.episode_number}</Text>
           {isLocked && <Text style={styles.lockIconSmall}>🔒</Text>}
         </View>
@@ -203,9 +207,9 @@ export const DramaDetailScreen: React.FC = () => {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Cover Image */}
       <View style={styles.coverWrapper}>
-        <Image source={{ uri: coverUrl }} style={styles.cover} />
+        <Image source={{ uri: coverUrl }} style={[styles.cover, { height: rw(75) }]} />
         {/* Gradient overlay */}
-        <View style={styles.coverGradient} />
+        <View style={[styles.coverGradient, { height: rw(32) }]} />
         {/* Rank badge */}
         {rank >= 0 && rank < 3 && (
           <View style={[styles.rankBadge, rank === 0 && styles.rankGold, rank === 1 && styles.rankSilver, rank === 2 && styles.rankBronze]}>
@@ -217,7 +221,7 @@ export const DramaDetailScreen: React.FC = () => {
       </View>
 
       {/* Info */}
-      <View style={styles.info}>
+      <View style={[styles.info, { padding: sp.md }]}>
         <Text style={styles.title}>{currentDrama.title}</Text>
         <View style={styles.tags}>
           <Text style={[styles.tag, styles.genreTag]}>{currentDrama.genre}</Text>
@@ -258,7 +262,7 @@ export const DramaDetailScreen: React.FC = () => {
         {/* Hot bar */}
         <View style={styles.hotBarWrapper}>
           <View style={styles.hotBarBg}>
-            <View style={[styles.hotBarFill, { width: Math.min(hotScore / 5000 * 100, 100) + '%' }]} />
+            <View style={[styles.hotBarFill, { width: `${Math.min(hotScore / 5000 * 100, 100)}%` }]} />
           </View>
           <Text style={styles.hotBarText}>Popularity: {formatNumber(hotScore)}</Text>
         </View>
@@ -267,14 +271,14 @@ export const DramaDetailScreen: React.FC = () => {
       </View>
 
       {/* Play All Button */}
-      <TouchableOpacity style={styles.playAllBtn} onPress={navigateToSwipePlayer} activeOpacity={0.8}>
+      <TouchableOpacity style={[styles.playAllBtn, { marginHorizontal: sp.md, marginVertical: sp.sm }]} onPress={navigateToSwipePlayer} activeOpacity={0.8}>
         <Text style={styles.playAllBtnIcon}>{'\u25B6'}</Text>
         <Text style={styles.playAllBtnText}>Play All Episodes</Text>
       </TouchableOpacity>
 
       {/* Points Balance Hint */}
       {isAuthenticated && (
-        <View style={styles.pointsHint}>
+        <View style={[styles.pointsHint, { marginHorizontal: sp.md, marginBottom: sp.sm, padding: sp.sm }]}>
           <Text style={styles.pointsHintText}>
             {t('your_points', { count: points ? formatNumber(points.balance) : '---' })}
           </Text>
@@ -282,7 +286,7 @@ export const DramaDetailScreen: React.FC = () => {
       )}
 
       {/* Action Buttons */}
-      <View style={styles.actions}>
+      <View style={[styles.actions, { paddingHorizontal: sp.md, marginBottom: sp.md }]}>
         <TouchableOpacity style={[styles.actionBtn, styles.actionBtnGap]} onPress={onToggleFavorite}>
           <Text style={styles.actionIcon}>{isFavorited ? '\u2764' : '\u2661'}</Text>
           <Text style={styles.actionLabel}>{t('favorite')}</Text>
@@ -298,28 +302,30 @@ export const DramaDetailScreen: React.FC = () => {
       </View>
 
       {/* Episode List */}
-      <Text style={styles.sectionTitle}>{t('episodes')}</Text>
+      <Text style={[styles.sectionTitle, { paddingHorizontal: sp.md, marginBottom: sp.sm }]}>
+        {t('episodes')}
+      </Text>
       <FlatList
         data={currentDrama.episodes}
         renderItem={renderEpisode}
         keyExtractor={(item) => `ep-${item.id}`}
         scrollEnabled={false}
-        contentContainerStyle={styles.episodeList}
+        contentContainerStyle={[styles.episodeList, { paddingBottom: sp.md }]}
       />
 
       {/* Hot Ranking Section */}
       {popularDramas.length > 0 && (
-        <View style={styles.rankingSection}>
-          <Text style={styles.sectionTitle}>
+        <View style={[styles.rankingSection, { marginTop: sp.md, paddingTop: sp.md }]}>
+          <Text style={[styles.sectionTitle, { paddingHorizontal: sp.md, marginBottom: sp.sm }]}>
             {'\u{1F525}'} {t('popular_ranking', 'Hot Ranking')}
           </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rankingScroll}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.rankingScroll, { paddingLeft: sp.md, paddingRight: sp.md, paddingBottom: sp.sm }]}>
             {popularDramas.slice(0, 10).map((d, idx) => {
               const isActive = d.id === currentDrama.id;
               return (
                 <TouchableOpacity
                   key={d.id}
-                  style={[styles.rankingCard, isActive && styles.rankingCardActive]}
+                  style={[styles.rankingCard, isActive && styles.rankingCardActive, { marginRight: scale(10) }]}
                   onPress={() => {
                     if (!isActive) {
                       (navigation.navigate as any)('SwipePlayer', { dramaId: d.id });
@@ -346,16 +352,16 @@ export const DramaDetailScreen: React.FC = () => {
         </View>
       )}
 
-      <View style={{ height: 40 }} />
+      <View style={{ height: scale(40) }} />
 
       {/* Purchase Confirmation Modal */}
       <Modal visible={!!purchaseModal} transparent animationType="fade" onRequestClose={() => setPurchaseModal(null)}>
         <View style={styles.purchaseOverlay}>
-          <View style={styles.purchaseCard}>
-            <Text style={styles.purchaseTitle}>{t('unlock_episode')}</Text>
+          <View style={[styles.purchaseCard, { padding: sp.lg }]}>
+            <Text style={[styles.purchaseTitle, { marginBottom: sp.md }]}>{t('unlock_episode')}</Text>
             {purchaseModal && (
               <>
-                <Text style={styles.purchaseEpName}>
+                <Text style={[styles.purchaseEpName, { marginBottom: sp.md }]}>
                   {t('episode_title', { num: purchaseModal.episode.episode_number })} — {purchaseModal.episode.title || ''}
                 </Text>
                 <View style={styles.purchaseCostRow}>
@@ -372,19 +378,20 @@ export const DramaDetailScreen: React.FC = () => {
                   </Text>
                 </View>
                 {(points?.balance ?? 0) < purchaseModal.episode.points_cost && (
-                  <Text style={styles.purchaseHint}>
+                  <Text style={[styles.purchaseHint, { marginBottom: sp.md }]}>
                     {t('insufficient_hint')}
                   </Text>
                 )}
               </>
             )}
-            <View style={styles.purchaseActions}>
-              <TouchableOpacity style={[styles.purchaseCancelBtn, styles.purchaseBtnGap]} onPress={() => setPurchaseModal(null)}>
+            <View style={[styles.purchaseActions, { marginTop: sp.md }]}>
+              <TouchableOpacity style={[styles.purchaseCancelBtn, styles.purchaseBtnGap, { marginRight: sp.md, padding: sp.sm }]} onPress={() => setPurchaseModal(null)}>
                 <Text style={styles.purchaseCancelText}>{t('cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
                   styles.purchaseConfirmBtn,
+                  { padding: sp.sm },
                   purchaseModal && (points?.balance ?? 0) < purchaseModal.episode.points_cost && styles.purchaseConfirmDisabled,
                 ]}
                 onPress={onConfirmPurchase}
@@ -410,15 +417,15 @@ export const DramaDetailScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   coverWrapper: { position: 'relative' },
-  cover: { width: '100%', height: 280, backgroundColor: COLORS.surface },
+  cover: { width: '100%', backgroundColor: COLORS.surface },
   coverGradient: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, height: 120,
+    position: 'absolute', bottom: 0, left: 0, right: 0,
     backgroundColor: 'transparent',
   },
   rankBadge: {
-    position: 'absolute', top: 16, right: 16,
-    paddingHorizontal: 12, paddingVertical: 5,
-    borderRadius: 14,
+    position: 'absolute', top: scale(16), right: scale(16),
+    paddingHorizontal: scale(12), paddingVertical: scale(5),
+    borderRadius: scale(14),
     backgroundColor: 'rgba(0,0,0,0.6)',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.2)',
@@ -426,113 +433,106 @@ const styles = StyleSheet.create({
   rankGold: { borderColor: '#FFD700', backgroundColor: 'rgba(255,215,0,0.2)' },
   rankSilver: { borderColor: '#C0C0C0', backgroundColor: 'rgba(192,192,192,0.2)' },
   rankBronze: { borderColor: '#CD7F32', backgroundColor: 'rgba(205,127,50,0.2)' },
-  rankBadgeText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
-  info: { padding: SPACING.md },
-  title: { color: COLORS.onSurface, fontSize: 24, fontWeight: 'bold', marginBottom: 8 },
-  tags: { flexDirection: 'row', marginBottom: 12 },
+  rankBadgeText: { color: '#FFF', fontSize: rf(13), fontWeight: '700' },
+  info: {},
+  title: { color: COLORS.onSurface, fontSize: rf(24), fontWeight: 'bold', marginBottom: scale(8) },
+  tags: { flexDirection: 'row', marginBottom: scale(12) },
   tag: {
-    paddingHorizontal: 10, paddingVertical: 3,
-    borderRadius: 12, backgroundColor: COLORS.surface,
-    color: COLORS.onSurfaceVariant, fontSize: 12, overflow: 'hidden',
+    paddingHorizontal: scale(10), paddingVertical: scale(3),
+    borderRadius: scale(12), backgroundColor: COLORS.surface,
+    color: COLORS.onSurfaceVariant, fontSize: rf(12), overflow: 'hidden',
   },
   genreTag: { backgroundColor: COLORS.primary },
   tagGreen: { backgroundColor: '#2E7D32' },
   tagBlue: { backgroundColor: '#1565C0' },
-  tagMargin: { marginLeft: 8 },
+  tagMargin: { marginLeft: scale(8) },
   statsRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around',
-    paddingVertical: 14, paddingHorizontal: SPACING.md,
-    borderRadius: 12, backgroundColor: COLORS.surface, marginBottom: 12,
+    paddingVertical: scale(14), borderRadius: scale(12), backgroundColor: COLORS.surface, marginBottom: scale(12),
   },
   statItem: { alignItems: 'center', flex: 1 },
-  statNumber: { color: COLORS.onSurface, fontSize: 18, fontWeight: 'bold' },
-  statLabel: { color: COLORS.onSurfaceVariant, fontSize: 11, marginTop: 2 },
-  statDivider: { width: 1, height: 32, backgroundColor: COLORS.outline },
-  hotBarWrapper: { marginBottom: 12 },
+  statNumber: { color: COLORS.onSurface, fontSize: rf(18), fontWeight: 'bold' },
+  statLabel: { color: COLORS.onSurfaceVariant, fontSize: rf(11), marginTop: scale(2) },
+  statDivider: { width: 1, height: scale(32), backgroundColor: COLORS.outline },
+  hotBarWrapper: { marginBottom: scale(12) },
   hotBarBg: {
-    height: 6, borderRadius: 3, backgroundColor: COLORS.surface,
-    overflow: 'hidden', marginBottom: 4,
+    height: scale(6), borderRadius: scale(3), backgroundColor: COLORS.surface,
+    overflow: 'hidden', marginBottom: scale(4),
   },
   hotBarFill: {
-    height: '100%', borderRadius: 3,
+    height: '100%', borderRadius: scale(3),
     backgroundColor: '#FF6B35',
   },
-  hotBarText: { color: COLORS.onSurfaceVariant, fontSize: 11 },
-  description: { color: COLORS.onSurfaceVariant, fontSize: 15, lineHeight: 22 },
+  hotBarText: { color: COLORS.onSurfaceVariant, fontSize: rf(11) },
+  description: { color: COLORS.onSurfaceVariant, fontSize: rf(15), lineHeight: scale(22) },
   playAllBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    marginHorizontal: SPACING.md, marginVertical: SPACING.sm,
-    paddingVertical: 14, borderRadius: 14,
+    paddingVertical: scale(14), borderRadius: scale(14),
     backgroundColor: COLORS.primary,
   },
-  playAllBtnIcon: { color: '#FFF', fontSize: 18, marginRight: 8 },
-  playAllBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+  playAllBtnIcon: { color: '#FFF', fontSize: rf(18), marginRight: scale(8) },
+  playAllBtnText: { color: '#FFF', fontSize: rf(16), fontWeight: '700' },
   pointsHint: {
-    marginHorizontal: SPACING.md, marginBottom: SPACING.sm,
-    padding: SPACING.sm, borderRadius: 8,
+    borderRadius: scale(8),
     backgroundColor: COLORS.secondaryContainer,
   },
-  pointsHintText: { color: COLORS.primaryLight, fontSize: 13, textAlign: 'center' },
-  actions: { flexDirection: 'row', paddingHorizontal: SPACING.md, marginBottom: SPACING.md },
-  actionBtn: { flex: 1, alignItems: 'center', paddingVertical: SPACING.sm },
-  actionIcon: { fontSize: 24 },
-  actionLabel: { color: COLORS.onSurfaceVariant, fontSize: 13, marginTop: 2 },
-  actionBtnGap: { marginRight: SPACING.md },
+  pointsHintText: { color: COLORS.primaryLight, fontSize: rf(13), textAlign: 'center' },
+  actions: { flexDirection: 'row' },
+  actionBtn: { flex: 1, alignItems: 'center', paddingVertical: scale(8) },
+  actionIcon: { fontSize: rf(24) },
+  actionLabel: { color: COLORS.onSurfaceVariant, fontSize: rf(13), marginTop: scale(2) },
+  actionBtnGap: { marginRight: scale(16) },
   sectionTitle: {
-    fontSize: 18, fontWeight: '600', color: COLORS.onSurface,
-    paddingHorizontal: SPACING.md, marginBottom: SPACING.sm,
+    fontSize: rf(18), fontWeight: '600', color: COLORS.onSurface,
   },
-  episodeList: { paddingBottom: SPACING.md },
+  episodeList: {},
   episodeCard: {
     flexDirection: 'row', alignItems: 'center',
-    marginHorizontal: SPACING.md, marginBottom: 8,
-    padding: SPACING.md, borderRadius: 12,
+    borderRadius: scale(12),
     backgroundColor: COLORS.surface,
   },
   episodeNumber: {
-    width: 40, height: 40, borderRadius: 20,
+    width: scale(40), height: scale(40), borderRadius: scale(20),
     backgroundColor: COLORS.secondaryContainer,
     justifyContent: 'center', alignItems: 'center',
-    marginRight: SPACING.md,
   },
   episodeNumberLocked: { backgroundColor: COLORS.outline },
-  episodeNumberText: { color: COLORS.primaryLight, fontSize: 16, fontWeight: 'bold' },
-  lockIconSmall: { fontSize: 10, position: 'absolute', bottom: -2, right: -2 },
+  episodeNumberText: { color: COLORS.primaryLight, fontSize: rf(16), fontWeight: 'bold' },
+  lockIconSmall: { fontSize: rf(10), position: 'absolute', bottom: -scale(2), right: -scale(2) },
   episodeInfo: { flex: 1 },
-  episodeTitle: { color: COLORS.onSurface, fontSize: 15, fontWeight: '500' },
-  episodeDuration: { color: COLORS.onSurfaceVariant, fontSize: 13, marginTop: 2 },
+  episodeTitle: { color: COLORS.onSurface, fontSize: rf(15), fontWeight: '500' },
+  episodeDuration: { color: COLORS.onSurfaceVariant, fontSize: rf(13), marginTop: scale(2) },
   unlockBtn: {
-    paddingHorizontal: 10, paddingVertical: 5,
-    borderRadius: 8, backgroundColor: COLORS.gold,
+    paddingHorizontal: scale(10), paddingVertical: scale(5),
+    borderRadius: scale(8), backgroundColor: COLORS.gold,
   },
-  unlockText: { color: '#000', fontSize: 12, fontWeight: '600' },
+  unlockText: { color: '#000', fontSize: rf(12), fontWeight: '600' },
   // Ranking section
   rankingSection: {
-    marginTop: SPACING.md, paddingTop: SPACING.md,
     borderTopWidth: 1, borderTopColor: COLORS.outline,
   },
-  rankingScroll: { paddingLeft: SPACING.md, paddingRight: SPACING.md, paddingBottom: SPACING.sm },
+  rankingScroll: {},
   rankingCard: {
-    width: 110, marginRight: 10, borderRadius: 10,
+    width: scale(110), borderRadius: scale(10),
     backgroundColor: COLORS.surface, overflow: 'hidden',
   },
   rankingCardActive: { borderWidth: 2, borderColor: COLORS.primary },
-  rankingCover: { width: 110, height: 150, backgroundColor: COLORS.outline },
+  rankingCover: { width: scale(110), height: scale(150), backgroundColor: COLORS.outline },
   rankingCoverOverlay: {
     position: 'absolute', top: 0, left: 0,
-    width: 28, height: 28, justifyContent: 'center', alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.6)', borderBottomRightRadius: 10,
+    width: scale(28), height: scale(28), justifyContent: 'center', alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)', borderBottomRightRadius: scale(10),
   },
-  rankingNumber: { color: '#FFF', fontSize: 13, fontWeight: 'bold' },
-  rankingNumberTop: { color: '#FFD700', fontSize: 15 },
+  rankingNumber: { color: '#FFF', fontSize: rf(13), fontWeight: 'bold' },
+  rankingNumberTop: { color: '#FFD700', fontSize: rf(15) },
   rankingTitle: {
-    color: COLORS.onSurface, fontSize: 12, fontWeight: '500',
-    paddingHorizontal: 6, paddingTop: 6,
+    color: COLORS.onSurface, fontSize: rf(12), fontWeight: '500',
+    paddingHorizontal: scale(6), paddingTop: scale(6),
   },
   rankingTitleActive: { color: COLORS.primaryLight },
   rankingViews: {
-    color: COLORS.onSurfaceVariant, fontSize: 10,
-    paddingHorizontal: 6, paddingBottom: 6,
+    color: COLORS.onSurfaceVariant, fontSize: rf(10),
+    paddingHorizontal: scale(6), paddingBottom: scale(6),
   },
   // Purchase Modal
   purchaseOverlay: {
@@ -540,29 +540,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   purchaseCard: {
-    width: '85%', maxWidth: 340, padding: SPACING.lg,
-    borderRadius: 16, backgroundColor: COLORS.surface,
+    width: '85%', maxWidth: scale(340),
+    borderRadius: scale(16), backgroundColor: COLORS.surface,
   },
-  purchaseTitle: { color: COLORS.onSurface, fontSize: 20, fontWeight: 'bold', marginBottom: SPACING.md },
-  purchaseEpName: { color: COLORS.onSurfaceVariant, fontSize: 15, marginBottom: SPACING.md },
+  purchaseTitle: { color: COLORS.onSurface, fontSize: rf(20), fontWeight: 'bold' },
+  purchaseEpName: { color: COLORS.onSurfaceVariant, fontSize: rf(15) },
   purchaseCostRow: {
-    flexDirection: 'row', justifyContent: 'space-between', marginBottom: SPACING.sm,
+    flexDirection: 'row', justifyContent: 'space-between', marginBottom: scale(8),
   },
-  purchaseCostLabel: { color: COLORS.onSurfaceVariant, fontSize: 15 },
-  purchaseCostValue: { color: COLORS.onSurface, fontSize: 15, fontWeight: '600' },
+  purchaseCostLabel: { color: COLORS.onSurfaceVariant, fontSize: rf(15) },
+  purchaseCostValue: { color: COLORS.onSurface, fontSize: rf(15), fontWeight: '600' },
   insufficientBalance: { color: COLORS.error },
-  purchaseHint: { color: COLORS.error, fontSize: 13, marginBottom: SPACING.md },
-  purchaseActions: { flexDirection: 'row', marginTop: SPACING.md },
+  purchaseHint: { color: COLORS.error, fontSize: rf(13) },
+  purchaseActions: { flexDirection: 'row', width: '100%' },
   purchaseCancelBtn: {
-    flex: 1, padding: SPACING.sm, borderRadius: 12,
+    flex: 1, borderRadius: scale(12),
     backgroundColor: COLORS.secondaryContainer, alignItems: 'center',
   },
-  purchaseCancelText: { color: COLORS.onSurface, fontSize: 15, fontWeight: '600' },
+  purchaseCancelText: { color: COLORS.onSurface, fontSize: rf(15), fontWeight: '600' },
   purchaseConfirmBtn: {
-    flex: 1, padding: SPACING.sm, borderRadius: 12,
+    flex: 1, borderRadius: scale(12),
     backgroundColor: COLORS.primary, alignItems: 'center',
   },
   purchaseConfirmDisabled: { opacity: 0.5 },
-  purchaseConfirmText: { color: COLORS.onPrimary, fontSize: 15, fontWeight: '600' },
-  purchaseBtnGap: { marginRight: SPACING.md },
+  purchaseConfirmText: { color: COLORS.onPrimary, fontSize: rf(15), fontWeight: '600' },
+  purchaseBtnGap: {},
 });

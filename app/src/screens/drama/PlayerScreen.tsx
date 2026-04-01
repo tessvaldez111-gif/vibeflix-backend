@@ -7,13 +7,14 @@ import {
   ActivityIndicator, StatusBar, Share, Platform,
   SafeAreaView, I18nManager,
 } from 'react-native';
-import Video, { VideoRef, ResizeMode, OnLoadData, OnProgressData, OnErrorData } from 'react-native-video';
+import Video, { VideoRef, ResizeMode, OnLoadData, OnProgressData } from 'react-native-video';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { usePlayerStore } from '../../stores';
 import { getMediaUrl } from '../../services/api';
 import { interactionService } from '../../services/interaction.service';
 import { formatDuration } from '../../utils/format';
 import { COLORS, AUTO_SAVE_INTERVAL } from '../../utils/constants';
+import { scale, rf } from '../../utils/responsive';
 
 type RouteParams = {
   dramaId: number;
@@ -145,7 +146,7 @@ export const PlayerScreen: React.FC = () => {
       if (!isSeeking) {
         setCurrentTime(data.currentTime);
       }
-      const dur = data.duration || duration;
+      const dur = data.seekableDuration || data.duration || duration;
       if (dur > 0) {
         setDuration(dur);
         setProgress(data.currentTime, dur);
@@ -157,7 +158,7 @@ export const PlayerScreen: React.FC = () => {
     try { saveProgress(); } catch (_) {}
   }, [saveProgress]);
 
-  const onError = useCallback((e: OnErrorData) => {
+  const onError = useCallback((e: any) => {
     console.warn('Video playback error:', e?.error?.errorString || e?.error || JSON.stringify(e));
     setIsLoading(false);
     setError('Playback failed');
@@ -166,13 +167,9 @@ export const PlayerScreen: React.FC = () => {
   const togglePlayPause = useCallback(() => {
     try {
       showControls();
-      if (isPlaying) {
-        videoRef.current?.pauseAsync();
-      } else {
-        videoRef.current?.playAsync();
-      }
+      setIsPlaying(prev => !prev);
     } catch (_) {}
-  }, [isPlaying, showControls]);
+  }, [showControls]);
 
   const handleSeek = useCallback((pos: number) => {
     try {
@@ -237,7 +234,7 @@ export const PlayerScreen: React.FC = () => {
       setIsPlaying(false);
       setTimeout(() => {
         videoRef.current?.seek(0);
-        videoRef.current?.playAsync();
+        setIsPlaying(true);
       }, 300);
     } catch (_) {}
   }, []);
@@ -265,7 +262,7 @@ export const PlayerScreen: React.FC = () => {
     height: SCREEN_H,
   };
   const dynamicProgressTouchArea = {
-    width: SCREEN_W - 32,
+    width: SCREEN_W - scale(32),
   };
 
   return (
@@ -284,13 +281,7 @@ export const PlayerScreen: React.FC = () => {
             onProgress={onProgress}
             onEnd={onEnd}
             onError={onError}
-            onPlaybackStateChanged={(state: any) => {
-              try {
-                setIsPlaying(!!state?.isPlaying);
-                setIsLoading(!!state?.isLoading);
-              } catch (_) {}
-            }}
-            useNativeControls={false}
+            controls={false}
             repeat={false}
             paused={!isPlaying}
             // Android ExoPlayer compatibility
@@ -378,21 +369,14 @@ export const PlayerScreen: React.FC = () => {
         <SafeAreaView style={styles.bottomSafe}>
           <View style={[styles.bottomFade, { backgroundColor: `rgba(0,0,0,${overlayOpacity})` }]}>
             <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: progressPercent + '%' }]} />
-              <View style={[styles.progressThumb, { left: progressPercent + '%' }]} />
+              <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+              <View style={[styles.progressThumb, { left: `${progressPercent}%` }]} />
               <TouchableOpacity
                 style={[styles.progressTouchArea, dynamicProgressTouchArea]}
-                onMove={(e: any) => {
-                  try {
-                    const x = e.nativeEvent.locationX;
-                    const pos = Math.max(0, Math.min(x / (SCREEN_W - 32), 1)) * duration;
-                    handleSeek(pos);
-                  } catch (_) {}
-                }}
                 onPress={(e: any) => {
                   try {
                     const x = e.nativeEvent.locationX;
-                    const pos = Math.max(0, Math.min(x / (SCREEN_W - 32), 1)) * duration;
+                    const pos = Math.max(0, Math.min(x / (SCREEN_W - scale(32)), 1)) * duration;
                     handleSeekRelease(pos);
                   } catch (_) {}
                 }}
@@ -454,67 +438,67 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingBottom: 12,
-    paddingHorizontal: 16,
+    paddingBottom: scale(12),
+    paddingHorizontal: scale(16),
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: scale(36),
+    height: scale(36),
+    borderRadius: scale(18),
     backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   backIcon: {
     color: '#FFF',
-    fontSize: 18,
+    fontSize: rf(18),
     fontWeight: '600',
   },
   backBtnPlaceholder: {
-    width: 36,
+    width: scale(36),
   },
   titleBox: {
     flex: 1,
-    marginLeft: 10,
+    marginLeft: scale(10),
   },
   titleText: {
     color: '#FFF',
-    fontSize: 16,
+    fontSize: rf(16),
     fontWeight: '600',
   },
   episodeText: {
     color: 'rgba(255,255,255,0.7)',
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: rf(13),
+    marginTop: scale(2),
   },
 
   // ===== Error =====
   errorText: {
     color: 'rgba(255,255,255,0.7)',
-    fontSize: 16,
-    marginBottom: 16,
+    fontSize: rf(16),
+    marginBottom: scale(16),
   },
   retryBtn: {
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: scale(24),
+    paddingVertical: scale(10),
+    borderRadius: scale(20),
     backgroundColor: 'rgba(255,255,255,0.2)',
   },
   retryBtnMargin: {
-    marginTop: 10,
+    marginTop: scale(10),
   },
   retryText: {
     color: '#FFF',
-    fontSize: 15,
+    fontSize: rf(15),
     fontWeight: '600',
   },
 
   // ===== Play/Pause center =====
   playBtnCenter: {
     position: 'absolute',
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: scale(64),
+    height: scale(64),
+    borderRadius: scale(32),
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -522,22 +506,22 @@ const styles = StyleSheet.create({
   },
   playIconCenter: {
     color: '#FFF',
-    fontSize: 28,
-    marginLeft: 4,
+    fontSize: rf(28),
+    marginLeft: scale(4),
   },
 
   // ===== Right action buttons =====
   rightActions: {
     position: 'absolute',
-    right: 12,
+    right: scale(12),
     alignItems: 'center',
   },
   actionBtn: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: scale(24),
   },
   actionIcon: {
-    fontSize: 28,
+    fontSize: rf(28),
     color: '#FFF',
   },
   actionIconActive: {
@@ -545,9 +529,9 @@ const styles = StyleSheet.create({
   },
   actionLabel: {
     color: 'rgba(255,255,255,0.8)',
-    fontSize: 11,
+    fontSize: rf(11),
     fontWeight: '500',
-    marginTop: 4,
+    marginTop: scale(4),
   },
   actionLabelActive: {
     color: '#FF4757',
@@ -561,32 +545,32 @@ const styles = StyleSheet.create({
     right: 0,
   },
   bottomFade: {
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingTop: scale(16),
+    paddingBottom: scale(8),
   },
   progressTrack: {
-    height: 24,
+    height: scale(24),
     justifyContent: 'center',
     position: 'relative',
-    marginLeft: 16,
-    marginRight: 16,
+    marginLeft: scale(16),
+    marginRight: scale(16),
   },
   progressFill: {
-    height: 3,
-    borderRadius: 1.5,
+    height: scale(3),
+    borderRadius: scale(1.5),
     backgroundColor: COLORS.primaryLight,
     position: 'absolute',
     left: 0,
-    top: 10.5,
+    top: scale(10.5),
   },
   progressThumb: {
     position: 'absolute',
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: scale(14),
+    height: scale(14),
+    borderRadius: scale(7),
     backgroundColor: '#FFF',
-    marginLeft: -7,
-    top: 5,
+    marginLeft: -scale(7),
+    top: scale(5),
     shadowColor: '#000',
     shadowOpacity: 0.3,
     shadowRadius: 2,
@@ -594,17 +578,17 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   progressTouchArea: {
-    height: 24,
+    height: scale(24),
   },
   timeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingLeft: 16,
-    paddingRight: 16,
-    marginTop: -2,
+    paddingLeft: scale(16),
+    paddingRight: scale(16),
+    marginTop: -scale(2),
   },
   timeText: {
     color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
+    fontSize: rf(12),
   },
 });

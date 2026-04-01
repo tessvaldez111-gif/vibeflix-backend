@@ -5,10 +5,12 @@ import {
   StyleSheet, Modal, KeyboardAvoidingView, Platform,
   ActivityIndicator, Animated, Alert,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { commentService } from '../../services/comment.service';
 import { useAuthStore } from '../../stores';
 import { formatRelativeTime } from '../../utils/format';
 import { COLORS, SPACING } from '../../utils/constants';
+import { scale, rf, getSpacing } from '../../utils/responsive';
 import type { Comment } from '../../types';
 
 interface Props {
@@ -19,6 +21,7 @@ interface Props {
 }
 
 const CommentPanel: React.FC<Props> = memo(({ visible, dramaId, episodeId, onClose }) => {
+  const { t } = useTranslation();
   const { isAuthenticated } = useAuthStore();
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -74,7 +77,7 @@ const CommentPanel: React.FC<Props> = memo(({ visible, dramaId, episodeId, onClo
   // Submit comment
   const handleSubmit = async () => {
     if (!isAuthenticated) {
-      Alert.alert('Login Required', 'Please login to comment');
+      Alert.alert(t('login_required'), t('login_to_comment'));
       return;
     }
     const text = inputText.trim();
@@ -86,7 +89,7 @@ const CommentPanel: React.FC<Props> = memo(({ visible, dramaId, episodeId, onClo
       setInputText('');
       flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
     } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to post comment');
+      Alert.alert(t('error'), err?.message || t('comment_failed'));
     }
     setSubmitting(false);
   };
@@ -138,19 +141,19 @@ const CommentPanel: React.FC<Props> = memo(({ visible, dramaId, episodeId, onClo
             {/* Header */}
             <View style={styles.header}>
               <View style={styles.handleBar} />
-              <Text style={styles.headerTitle}>Comments</Text>
+              <Text style={styles.headerTitle}>{t('comments')}</Text>
               <View style={styles.sortRow}>
                 <TouchableOpacity
                   style={[styles.sortBtn, sortMode === 'latest' && styles.sortBtnActive]}
                   onPress={() => handleSortChange('latest')}
                 >
-                  <Text style={[styles.sortText, sortMode === 'latest' && styles.sortTextActive]}>Latest</Text>
+                  <Text style={[styles.sortText, sortMode === 'latest' && styles.sortTextActive]}>{t('sort_latest')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.sortBtn, sortMode === 'hot' && styles.sortBtnActive]}
                   onPress={() => handleSortChange('hot')}
                 >
-                  <Text style={[styles.sortText, sortMode === 'hot' && styles.sortTextActive]}>Hot</Text>
+                  <Text style={[styles.sortText, sortMode === 'hot' && styles.sortTextActive]}>{t('sort_hot')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -164,8 +167,8 @@ const CommentPanel: React.FC<Props> = memo(({ visible, dramaId, episodeId, onClo
               ListEmptyComponent={
                 !loading ? (
                   <View style={styles.emptyBox}>
-                    <Text style={styles.emptyText}>No comments yet</Text>
-                    <Text style={styles.emptySub}>Be the first to comment!</Text>
+                    <Text style={styles.emptyText}>{t('no_comments')}</Text>
+                    <Text style={styles.emptySub}>{t('be_first_comment')}</Text>
                   </View>
                 ) : null
               }
@@ -174,7 +177,7 @@ const CommentPanel: React.FC<Props> = memo(({ visible, dramaId, episodeId, onClo
                   <ActivityIndicator size="small" color={COLORS.primaryLight} style={{ marginVertical: 12 }} />
                 ) : hasMore ? (
                   <TouchableOpacity style={styles.loadMoreBtn} onPress={loadMore}>
-                    <Text style={styles.loadMoreText}>Load More</Text>
+                    <Text style={styles.loadMoreText}>{t('load_more')}</Text>
                   </TouchableOpacity>
                 ) : null
               }
@@ -187,7 +190,7 @@ const CommentPanel: React.FC<Props> = memo(({ visible, dramaId, episodeId, onClo
             <View style={styles.inputBar}>
               <TextInput
                 style={styles.input}
-                placeholder={isAuthenticated ? 'Say something...' : 'Login to comment'}
+                placeholder={isAuthenticated ? t('comment_placeholder') : t('login_to_comment')}
                 placeholderTextColor="rgba(255,255,255,0.3)"
                 value={inputText}
                 onChangeText={setInputText}
@@ -203,7 +206,7 @@ const CommentPanel: React.FC<Props> = memo(({ visible, dramaId, episodeId, onClo
                 {submitting ? (
                   <ActivityIndicator size="small" color="#FFF" />
                 ) : (
-                  <Text style={styles.sendText}>Send</Text>
+                  <Text style={styles.sendText}>{t('send')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -214,6 +217,8 @@ const CommentPanel: React.FC<Props> = memo(({ visible, dramaId, episodeId, onClo
   );
 });
 
+const S = () => getSpacing();
+
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
@@ -222,8 +227,8 @@ const styles = StyleSheet.create({
   },
   panel: {
     backgroundColor: '#1E1C28',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: scale(20),
+    borderTopRightRadius: scale(20),
     height: '70%',
     overflow: 'hidden',
   },
@@ -231,34 +236,34 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingTop: 12,
-    paddingHorizontal: SPACING.md,
+    paddingTop: scale(12),
+    paddingHorizontal: S().md,
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.08)',
-    paddingBottom: 12,
+    paddingBottom: scale(12),
   },
   handleBar: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
+    width: scale(36),
+    height: scale(4),
+    borderRadius: scale(2),
     backgroundColor: 'rgba(255,255,255,0.2)',
-    marginBottom: 12,
+    marginBottom: scale(12),
   },
   headerTitle: {
     color: '#FFF',
-    fontSize: 16,
+    fontSize: rf(16),
     fontWeight: '700',
-    marginBottom: 10,
+    marginBottom: scale(10),
   },
   sortRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: scale(10),
   },
   sortBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-    borderRadius: 14,
+    paddingHorizontal: scale(14),
+    paddingVertical: scale(5),
+    borderRadius: scale(14),
     backgroundColor: 'rgba(255,255,255,0.08)',
   },
   sortBtnActive: {
@@ -266,7 +271,7 @@ const styles = StyleSheet.create({
   },
   sortText: {
     color: 'rgba(255,255,255,0.6)',
-    fontSize: 13,
+    fontSize: rf(13),
     fontWeight: '600',
   },
   sortTextActive: {
@@ -274,26 +279,26 @@ const styles = StyleSheet.create({
   },
   list: {
     flex: 1,
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: S().md,
   },
   commentItem: {
     flexDirection: 'row',
-    paddingVertical: 12,
+    paddingVertical: scale(12),
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.04)',
   },
   avatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: scale(34),
+    height: scale(34),
+    borderRadius: scale(17),
     backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
+    marginRight: scale(10),
   },
   avatarText: {
     color: '#FFF',
-    fontSize: 14,
+    fontSize: rf(14),
     fontWeight: '700',
   },
   commentBody: {
@@ -301,31 +306,31 @@ const styles = StyleSheet.create({
   },
   commentName: {
     color: 'rgba(255,255,255,0.5)',
-    fontSize: 12,
-    marginBottom: 3,
+    fontSize: rf(12),
+    marginBottom: scale(3),
   },
   commentContent: {
     color: '#FFF',
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: rf(14),
+    lineHeight: rf(20),
   },
   commentMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 6,
-    gap: 16,
+    marginTop: scale(6),
+    gap: scale(16),
   },
   commentTime: {
     color: 'rgba(255,255,255,0.3)',
-    fontSize: 11,
+    fontSize: rf(11),
   },
   likeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: scale(4),
   },
   likeIcon: {
-    fontSize: 14,
+    fontSize: rf(14),
     color: 'rgba(255,255,255,0.4)',
   },
   likeIconActive: {
@@ -333,52 +338,52 @@ const styles = StyleSheet.create({
   },
   likeCount: {
     color: 'rgba(255,255,255,0.3)',
-    fontSize: 11,
+    fontSize: rf(11),
   },
   emptyBox: {
     alignItems: 'center',
-    paddingTop: 60,
+    paddingTop: scale(60),
   },
   emptyText: {
     color: 'rgba(255,255,255,0.5)',
-    fontSize: 15,
+    fontSize: rf(15),
     fontWeight: '600',
   },
   emptySub: {
     color: 'rgba(255,255,255,0.3)',
-    fontSize: 13,
-    marginTop: 6,
+    fontSize: rf(13),
+    marginTop: scale(6),
   },
   loadMoreBtn: {
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: scale(12),
   },
   loadMoreText: {
     color: COLORS.primaryLight,
-    fontSize: 13,
+    fontSize: rf(13),
   },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 10,
+    paddingHorizontal: S().md,
+    paddingVertical: scale(10),
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.08)',
-    gap: 10,
+    gap: scale(10),
   },
   input: {
     flex: 1,
-    height: 38,
-    borderRadius: 19,
+    height: scale(38),
+    borderRadius: scale(19),
     backgroundColor: 'rgba(255,255,255,0.08)',
-    paddingHorizontal: 16,
+    paddingHorizontal: scale(16),
     color: '#FFF',
-    fontSize: 14,
+    fontSize: rf(14),
   },
   sendBtn: {
-    width: 56,
-    height: 38,
-    borderRadius: 19,
+    width: scale(56),
+    height: scale(38),
+    borderRadius: scale(19),
     backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
@@ -388,7 +393,7 @@ const styles = StyleSheet.create({
   },
   sendText: {
     color: '#FFF',
-    fontSize: 14,
+    fontSize: rf(14),
     fontWeight: '600',
   },
 });

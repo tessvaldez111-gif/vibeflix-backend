@@ -7,6 +7,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { getMediaUrl } from '../../services/api';
+import apiClient from '../../services/api';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { COLORS, SPACING } from '../../utils/constants';
 import type { Drama } from '../../types';
@@ -35,14 +36,13 @@ export const FollowTab: React.FC = () => {
       // We'll load from watch history (which contains drama info)
       // In a real app this would be a dedicated "follow/subscribe" API
       // For now we use the interaction service's favorites
-      const { default: api } = await import('../../services/api');
       const token = await import('../../stores/authStore').then(s => s.useAuthStore.getState().token);
       if (!token) {
         setFollows([]);
         setIsLoading(false);
         return;
       }
-      const res = await fetch(`${api.API_BASE_URL}/api/users/favorites`, {
+      const res = await fetch(`${apiClient.defaults.baseURL}/api/users/favorites`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -108,7 +108,7 @@ export const FollowTab: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{t('tab_follow')}</Text>
+      <Text style={styles.headerTitle}>{t('tab_follow')}</Text>
 
       {follows.length === 0 ? (
         <View style={styles.empty}>
@@ -137,7 +137,7 @@ export const FollowTab: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  title: {
+  headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: COLORS.onSurface,

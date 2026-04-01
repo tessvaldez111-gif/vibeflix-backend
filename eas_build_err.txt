@@ -1,0 +1,13 @@
+﻿Resolved "production" environment for the build. Learn more: https://docs.expo.dev/eas/environment-variables/#setting-the-environment-for-your-builds
+No environment variables with visibility "Plain text" and "Sensitive" found for the "production" environment on EAS.
+
+
+
+android.versionCode field in app config is ignored when version source is set to remote, but this value will still be in the manifest available via expo-constants. It's recommended to remove this value from app config.
+鉁?Using remote Android credentials (Expo server)
+鉁?Using Keystore from configuration: Build Credentials I6oVwZnzoT (default)
+
+Compressing project files and uploading to EAS Build. Learn more: https://expo.fyi/eas-build-archive
+- Compressing project files
+- Uploading to EAS Build (0 / 46.9 MB)
+鉁?Uploaded to EAS 50s

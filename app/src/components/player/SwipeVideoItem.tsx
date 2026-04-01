@@ -1,22 +1,28 @@
-// ===== Swipe Video Item (single video card for TikTok-style player) =====
-// Enhanced: Playback speed, danmaku, ad reward, comments, episode selector
+// ===== Swipe Video Item (TikTok-style immersive video card) =====
+// v1.3.0: Double-tap like heart animation, long-press seek, gesture-driven swipe
+//         with audio fade, progress indicator, bounce-back, instant destroy on switch
 import React, { useRef, useEffect, useState, useCallback, memo, useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   ActivityIndicator, StatusBar, Share, Platform, TextInput, Alert,
+  Animated, PanResponder, Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Video, { VideoRef, ResizeMode, OnLoadData, OnProgressData } from 'react-native-video';
 import { getMediaUrl } from '../../services/api';
 import { adRewardService, commentService } from '../../services/comment.service';
 import { formatDuration, formatNumber } from '../../utils/format';
 import { COLORS } from '../../utils/constants';
+import { scale, rf } from '../../utils/responsive';
 import { usePlayerStore, PLAYBACK_SPEEDS, type PlaybackSpeed } from '../../stores/playerStore';
 import { useWalletStore } from '../../stores/walletStore';
+import { useTranslation } from 'react-i18next';
 import DanmakuOverlay from './DanmakuOverlay';
 import SpeedSelector from './SpeedSelector';
 import AdRewardModal from './AdRewardModal';
 import CommentPanel from './CommentPanel';
 import EpisodeSelector from './EpisodeSelector';
+import VideoPlayManager from '../../services/VideoPlayManager';
 import type { Episode, SwipeEpisodeData as SwipeData } from '../../types';
 
 // Re-export the interface for compatibility
@@ -42,8 +48,85 @@ interface Props {
   episodes: Episode[];
   screenWidth: number;
   screenHeight: number;
-  preloadBuffer?: boolean; // true for adjacent videos: muted + paused but buffer ahead for instant start
+  // Gesture-driven swipe callbacks
+  onSwipeGestureStart?: () => void;
+  onSwipeGestureEnd?: (completed: boolean) => void;
+  onSwipeProgress?: (offsetY: number) => void;
+  isGestureActive?: boolean;
 }
+
+// Floating heart animation component
+const FloatingHeart: React.FC<{ x: number; y: number; onComplete: () => void }> = memo(({ x, y, onComplete }) => {
+  const translateY = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+  const scaleVal = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    scaleVal.setValue(0);
+    translateY.setValue(0);
+    opacity.setValue(1);
+
+    Animated.sequence([
+      Animated.spring(scaleVal, { toValue: 1.2, useNativeDriver: true, friction: 3 }),
+      Animated.parallel([
+        Animated.timing(translateY, { toValue: -80, duration: 800, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0, duration: 800, useNativeDriver: true }),
+      ]),
+    ]).start(() => onComplete());
+  }, []);
+
+  return (
+    <Animated.View
+      style={{
+        position: 'absolute',
+        left: x - 30,
+        top: y - 30,
+        width: 60,
+        height: 60,
+        transform: [{ translateY }, { scale: scaleVal }],
+        opacity,
+        zIndex: 200,
+      }}
+    >
+      <Text style={{ fontSize: 50, color: '#FF4757' }}>{'\u{2764}\u{FE0F}'}</Text>
+    </Animated.View>
+  );
+});
+
+// Swipe progress indicator bar
+const SwipeIndicator: React.FC<{ direction: 'up' | 'down'; progress: number }> = memo(({ direction, progress }) => {
+  const animatedVal = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(animatedVal, {
+      toValue: progress,
+      useNativeDriver: true,
+      friction: 8,
+    }).start();
+  }, [progress]);
+
+  return (
+    <View style={[styles.swipeIndicator, direction === 'up' ? styles.swipeIndicatorUp : styles.swipeIndicatorDown]}>
+      <Animated.View style={[styles.swipeIndicatorFill, { width: `${Math.min(progress * 100, 100)}%` }]} />
+      <Text style={styles.swipeIndicatorText}>
+        {direction === 'up' ? '\u2191' : '\u2193'}
+      </Text>
+    </View>
+  );
+});
+
+// Seek feedback overlay
+const SeekFeedback: React.FC<{ type: 'forward' | 'backward'; visible: boolean; label: string }> = memo(({ type, visible, label }) => {
+  if (!visible) return null;
+  return (
+    <View style={styles.seekOverlay}>
+      <View style={styles.seekCircle}>
+        <Text style={styles.seekIcon}>{type === 'forward' ? '\u25B6\u25B6' : '\u25C0\u25C0'}</Text>
+        <Text style={styles.seekLabel}>{label}</Text>
+      </View>
+    </View>
+  );
+});
 
 const SwipeVideoItem: React.FC<Props> = memo(({
   data,
@@ -65,7 +148,10 @@ const SwipeVideoItem: React.FC<Props> = memo(({
   episodes,
   screenWidth: W,
   screenHeight: H,
-  preloadBuffer = false,
+  onSwipeGestureStart,
+  onSwipeGestureEnd,
+  onSwipeProgress,
+  isGestureActive = false,
 }) => {
   const videoRef = useRef<VideoRef>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -73,7 +159,6 @@ const SwipeVideoItem: React.FC<Props> = memo(({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [hasError, setHasError] = useState(false);
-  // Controls visible on tap, but right-side buttons always visible
   const [controlsVisible, setControlsVisible] = useState(true);
   const [isSeeking, setIsSeeking] = useState(false);
   const [seekPosition, setSeekPosition] = useState(0);
@@ -81,20 +166,35 @@ const SwipeVideoItem: React.FC<Props> = memo(({
   const [showComments, setShowComments] = useState(false);
   const [showEpisodes, setShowEpisodes] = useState(false);
   const [showAdReward, setShowAdReward] = useState(false);
+  const [showDanmakuInput, setShowDanmakuInput] = useState(false);
   const [danmakuInput, setDanmakuInput] = useState('');
-  // Local danmaku list for this episode (loaded from backend + user-sent)
   const [localDanmakuList, setLocalDanmakuList] = useState<any[]>([]);
-  // Trigger danmaku overlay refresh when user sends a new danmaku
   const [danmakuRefresh, setDanmakuRefresh] = useState(0);
-  // Track if video decoder is ready to prevent audio bleed
   const [decoderReady, setDecoderReady] = useState(false);
+  const insets = useSafeAreaInsets();
+
+  // Double-tap like animation state
+  const [hearts, setHearts] = useState<Array<{ id: number; x: number; y: number }>>([]);
+  const heartsIdRef = useRef(0);
+
+  // Long-press seek state
+  const [longPressSeek, setLongPressSeek] = useState<'forward' | 'backward' | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const savedPlayStateRef = useRef(false);
+  const longPressTimeRef = useRef(0); // Track seek position via ref to avoid closure bug
+
+  // Swipe gesture progress
+  const [swipeProgress, setSwipeProgress] = useState(0);
+  const [swipeDirection, setSwipeDirection] = useState<'up' | 'down' | null>(null);
+
+  // Audio volume (animated via ref for real-time control)
+  const volumeRef = useRef(1);
+  const [videoVolume, setVideoVolume] = useState(1);
 
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Track previous active state to detect transitions
-  const prevActiveRef = useRef(false);
-  // Delay play timer to ensure old video audio stops before new one starts
   const playDelayTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const { t } = useTranslation();
   const loadPoints = useWalletStore(state => state.loadPoints);
 
   const {
@@ -105,16 +205,14 @@ const SwipeVideoItem: React.FC<Props> = memo(({
     setDanmakuEnabled,
   } = usePlayerStore();
 
-  // Memoize video URI
   const videoUri = useMemo(() => data.video_path ? getMediaUrl(data.video_path) : '', [data.video_path]);
 
-  // Use videoUri + index as key: ensures Video fully remounts on EVERY index change,
-  // even when swiping back to a previously visited episode (same videoUri).
-  // This completely destroys the old audio decoder and prevents audio bleed / frozen frame.
-  const activeVideoKey = `${videoUri}__${index}`;
+  // Key includes index — forces FULL remount every time this item becomes active,
+  // ensuring a fresh ExoPlayer/PlayerView instance (no SurfaceView reuse)
+  const activeVideoKey = `player__${videoUri}__${index}`;
   const progressPercent = duration > 0 ? ((isSeeking ? seekPosition : currentTime) / duration) * 100 : 0;
 
-  // Auto-hide only the top title bar after 4s
+  // Auto-hide controls after 4s
   useEffect(() => {
     if (isPlaying && !isLoading && !hasError) {
       controlsTimer.current = setTimeout(() => {
@@ -124,43 +222,44 @@ const SwipeVideoItem: React.FC<Props> = memo(({
     return () => { if (controlsTimer.current) clearTimeout(controlsTimer.current); };
   }, [isPlaying, isLoading, hasError]);
 
-  // Play/pause based on isActive - FIXED: prevent audio bleed when swiping
+  // ===== CORE LIFECYCLE: activate → create player → preload → play =====
+  // =====                deactivate → pause → unbind → destroy (unmount) =====
   useEffect(() => {
     if (isActive) {
-      // Becoming active
-      const wasPreBuffered = decoderReady && duration > 0;
-      if (wasPreBuffered) {
-        // Video was pre-buffering: decoder ready + duration known, start immediately!
-        setIsLoading(false);
-        setIsPlaying(true);
-      } else {
-        // Normal: fresh start - reset and delayed play
-        setCurrentTime(0);
-        setDuration(0);
-        setIsLoading(true);
-        setHasError(false);
-        setLocalDanmakuList([]);
-        setDecoderReady(false);
+      // Entering active: reset state for fresh player
+      setIsLoading(true);
+      setHasError(false);
+      setDecoderReady(false);
+      setCurrentTime(0);
+      setShowDanmakuInput(false);
+      setLongPressSeek(null);
+      if (longPressTimer.current) { clearInterval(longPressTimer.current); longPressTimer.current = null; }
+      videoRef.current = null; // clear ref — new instance will be created by mount
 
-        if (playDelayTimer.current) {
-          clearTimeout(playDelayTimer.current);
-          playDelayTimer.current = null;
-        }
-
-        playDelayTimer.current = setTimeout(() => {
-          setIsPlaying(true);
-        }, 300);
+      if (playDelayTimer.current) {
+        clearTimeout(playDelayTimer.current);
+        playDelayTimer.current = null;
       }
+
+      // Delay play slightly to allow ExoPlayer surface to initialize
+      playDelayTimer.current = setTimeout(() => {
+        setIsPlaying(true);
+      }, 350);
     } else {
-      // Becoming inactive: STOP immediately and cancel any pending play
+      // Leaving active: pause immediately, release from global manager
       if (playDelayTimer.current) {
         clearTimeout(playDelayTimer.current);
         playDelayTimer.current = null;
       }
       setIsPlaying(false);
       setDecoderReady(false);
+      setShowDanmakuInput(false);
+      setLongPressSeek(null);
+      if (longPressTimer.current) { clearInterval(longPressTimer.current); longPressTimer.current = null; }
+      // Release from global manager — this unbinds the old player
+      VideoPlayManager.releaseCurrent();
+      videoRef.current = null; // release reference
     }
-    prevActiveRef.current = isActive;
 
     return () => {
       if (playDelayTimer.current) {
@@ -170,6 +269,21 @@ const SwipeVideoItem: React.FC<Props> = memo(({
     };
   }, [isActive]);
 
+  // When gesture is active (user is swiping), pause globally via VideoPlayManager
+  useEffect(() => {
+    if (isGestureActive && isActive) {
+      savedPlayStateRef.current = isPlaying;
+      VideoPlayManager.pauseAll(); // Global pause — prevents audio bleed
+      setIsPlaying(false);
+      setVideoVolume(0);
+    } else if (!isGestureActive && isActive) {
+      setVideoVolume(1);
+      if (savedPlayStateRef.current) {
+        setIsPlaying(true);
+      }
+    }
+  }, [isGestureActive, isActive]);
+
   // Load danmaku from backend when episode becomes active
   useEffect(() => {
     if (!isActive || !data.drama_id || !data.id) return;
@@ -178,34 +292,37 @@ const SwipeVideoItem: React.FC<Props> = memo(({
       if (!cancelled && Array.isArray(list)) {
         setLocalDanmakuList(list);
       }
-    }).catch(() => {
-      // Silently fail - danmaku is optional
-    });
+    }).catch(() => {});
     return () => { cancelled = true; };
   }, [isActive, data.drama_id, data.id]);
 
   // Seek when playback speed changes
   useEffect(() => {
     if (videoRef.current && isActive) {
-      videoRef.current.setNativeProps?.({ rate: playbackSpeed });
+      videoRef.current.seek(0); // Trigger rate update via seek reset
+      // Rate change is handled by the `rate` prop directly
     }
   }, [playbackSpeed, isActive]);
 
-  // Double-tap to seek
+  // ===== Double-tap like: 300ms window =====
   const lastTapRef = useRef(0);
-  const doubleTapXRef = useRef(W / 2);
+  const lastTapPosRef = useRef({ x: 0, y: 0 });
+  const tapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleLoad = useCallback((d: OnLoadData) => {
+    console.log(`[SwipeVideoItem] onLoad ep=${data.episode_number}`);
     setIsLoading(false);
     setHasError(false);
     setDuration(d.duration);
-    // Mark decoder as ready - video frames will now render
     setDecoderReady(true);
-  }, []);
+    // Bind to global manager when decoder is ready
+    if (videoRef.current) {
+      VideoPlayManager.bindPlayer(videoRef.current);
+    }
+  }, [data.episode_number]);
 
   const lastProgressRef = useRef(0);
   const handleProgress = useCallback((d: OnProgressData) => {
-    if (preloadBuffer) return; // Don't track progress while pre-buffering
     const now = Date.now();
     if (now - lastProgressRef.current < 1000) return;
     lastProgressRef.current = now;
@@ -213,54 +330,102 @@ const SwipeVideoItem: React.FC<Props> = memo(({
     const dur = d.playableDuration || duration;
     if (dur > 0) setDuration(dur);
     onProgressUpdate(d.currentTime, dur);
-  }, [isSeeking, duration, onProgressUpdate, preloadBuffer]);
+  }, [isSeeking, duration, onProgressUpdate]);
 
   const handleError = useCallback(() => {
+    console.log(`[SwipeVideoItem] onError ep=${data.episode_number}`);
     setIsLoading(false);
     setHasError(true);
-  }, []);
+  }, [data.episode_number]);
 
   const showControlsFn = useCallback(() => {
     setControlsVisible(true);
     if (controlsTimer.current) clearTimeout(controlsTimer.current);
-    // Only auto-hide top bar, bottom bar & right actions stay
     if (isPlaying && !isLoading && !hasError) {
       controlsTimer.current = setTimeout(() => setControlsVisible(false), 4000);
     }
   }, [isPlaying, isLoading, hasError]);
 
   const togglePlayPause = useCallback(() => {
-    const now = Date.now();
-    const x = doubleTapXRef.current;
-    if (now - lastTapRef.current < 300) {
-      // Double tap - seek
-      const seekAmount = 10;
-      if (x < W * 0.4) {
-        // Seek backward
-        const newPos = Math.max(0, (isSeeking ? seekPosition : currentTime) - seekAmount);
-        videoRef.current?.seek(newPos);
-        setSeekPosition(newPos);
-        setIsSeeking(true);
-        setTimeout(() => setIsSeeking(false), 300);
-      } else if (x > W * 0.6) {
-        // Seek forward
-        const newPos = Math.min(duration, (isSeeking ? seekPosition : currentTime) + seekAmount);
-        videoRef.current?.seek(newPos);
-        setSeekPosition(newPos);
-        setIsSeeking(true);
-        setTimeout(() => setIsSeeking(false), 300);
-      }
-      lastTapRef.current = 0;
-      return;
-    }
-    lastTapRef.current = now;
     showControlsFn();
     setIsPlaying(prev => !prev);
-  }, [isSeeking, seekPosition, currentTime, duration, showControlsFn]);
+  }, [showControlsFn]);
 
-  const handleDoubleTapArea = useCallback((x: number) => {
-    doubleTapXRef.current = x;
+  // Handle single/double tap
+  // Double-tap: always add like (cumulative, never decrease)
+  const handleTap = useCallback((x: number, y: number) => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      // Double tap detected — always trigger like (cumulative only)
+      if (tapTimeoutRef.current) { clearTimeout(tapTimeoutRef.current); tapTimeoutRef.current = null; }
+      const heartId = ++heartsIdRef.current;
+      setHearts(prev => [...prev, { id: heartId, x, y }]);
+      // Always call onToggleLike to increment (never toggle off)
+      onToggleLike(data.drama_id);
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+      lastTapPosRef.current = { x, y };
+      // Wait to see if it becomes a double tap
+      tapTimeoutRef.current = setTimeout(() => {
+        tapTimeoutRef.current = null;
+        // Single tap — toggle play/pause
+        togglePlayPause();
+      }, 300);
+    }
+  }, [togglePlayPause, onToggleLike, data.drama_id]);
+
+  const removeHeart = useCallback((id: number) => {
+    setHearts(prev => prev.filter(h => h.id !== id));
   }, []);
+
+  // ===== Long-press seek =====
+  const handleLongPressStart = useCallback((x: number) => {
+    if (!isActive || isLoading || hasError) return;
+    savedPlayStateRef.current = isPlaying;
+    setIsPlaying(false);
+
+    const type = x < W * 0.3 ? 'backward' : x > W * 0.7 ? 'forward' : null;
+    if (!type) return; // Middle area — no long press seek
+
+    setLongPressSeek(type);
+    // Immediately seek once
+    const seekAmount = 5;
+    longPressTimeRef.current = currentTime;
+    if (type === 'forward') {
+      const newPos = Math.min(duration, longPressTimeRef.current + seekAmount);
+      videoRef.current?.seek(newPos);
+      setCurrentTime(newPos);
+      longPressTimeRef.current = newPos;
+    } else {
+      const newPos = Math.max(0, longPressTimeRef.current - seekAmount);
+      videoRef.current?.seek(newPos);
+      setCurrentTime(newPos);
+      longPressTimeRef.current = newPos;
+    }
+    // Continue seeking while held — use ref to avoid closure bug
+    longPressTimer.current = setInterval(() => {
+      if (type === 'forward') {
+        const newPos = Math.min(duration, longPressTimeRef.current + seekAmount);
+        videoRef.current?.seek(newPos);
+        setCurrentTime(newPos);
+        longPressTimeRef.current = newPos;
+      } else {
+        const newPos = Math.max(0, longPressTimeRef.current - seekAmount);
+        videoRef.current?.seek(newPos);
+        setCurrentTime(newPos);
+        longPressTimeRef.current = newPos;
+      }
+    }, 200);
+  }, [isActive, isLoading, hasError, isPlaying, W, duration, currentTime]);
+
+  const handleLongPressEnd = useCallback(() => {
+    if (longPressTimer.current) { clearInterval(longPressTimer.current); longPressTimer.current = null; }
+    setLongPressSeek(null);
+    if (savedPlayStateRef.current && isActive) {
+      setIsPlaying(true);
+    }
+  }, [isActive]);
 
   const handleSeekStart = useCallback((pos: number) => {
     setSeekPosition(pos);
@@ -287,10 +452,12 @@ const SwipeVideoItem: React.FC<Props> = memo(({
   const retryPlay = useCallback(() => {
     setHasError(false);
     setIsLoading(true);
+    setDecoderReady(false);
     setIsPlaying(true);
   }, []);
 
-  const statusBarPadTop = Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 50;
+  const statusBarPadTop = insets.top > 0 ? insets.top : (Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0);
+  const bottomSafePad = insets.bottom > 0 ? insets.bottom : (Platform.OS === 'android' ? scale(8) : 20);
 
   const handleSendDanmaku = useCallback(() => {
     if (!danmakuInput.trim()) return;
@@ -305,33 +472,100 @@ const SwipeVideoItem: React.FC<Props> = memo(({
       position: 0,
       created_at: new Date().toISOString(),
     };
-    // Add to local list for instant display
     setLocalDanmakuList(prev => [...prev, newDanmaku]);
-    // Force danmaku overlay to re-evaluate immediately
     setDanmakuRefresh(prev => prev + 1);
-    // Also send to backend (include time so server stores it correctly)
     commentService.sendDanmaku(data.drama_id, data.id, danmakuInput.trim(), '#FFFFFF', 0, currentTime).catch(() => {});
     setDanmakuInput('');
+    setShowDanmakuInput(false);
   }, [danmakuInput, data.drama_id, data.id, currentTime]);
 
-  const progressWidth = Math.max(0, W - 28);
-  // Update getSeekText to use W properly
-  const seekTextX = doubleTapXRef.current;
+  const progressWidth = Math.max(0, W - scale(28));
 
-  // Seek indicator text
-  const getSeekText = () => {
-    if (seekTextX > W * 0.6) return '\u25B6\u25B6 +10s';
-    return '\u25C0\u25C0 -10s';
-  };
+  // Video is paused when: user paused, decoder not ready, or gesture active
+  const videoPaused = !isPlaying || !decoderReady;
+  // Video is muted when: gesture is in progress
+  const videoMuted = isGestureActive;
+
+  // When controls auto-hide, collapse danmaku input to prevent blocking
+  useEffect(() => {
+    if (!controlsVisible) {
+      setShowDanmakuInput(false);
+    }
+  }, [controlsVisible]);
+
+  // ===== Vertical swipe PanResponder for gesture-driven transition =====
+  const panResponder = useMemo(() => {
+    const SWIPE_THRESHOLD = 50;
+    let startY = 0;
+    let direction: 'up' | 'down' | null = null;
+
+    return PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        // Only respond to vertical gestures with sufficient movement
+        return Math.abs(gestureState.dy) > 15 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx) * 1.5;
+      },
+      onPanResponderGrant: (evt, gestureState) => {
+        startY = gestureState.dy;
+        direction = gestureState.dy < 0 ? 'up' : 'down';
+        onSwipeGestureStart?.();
+        setSwipeDirection(direction);
+        setSwipeProgress(0);
+        // Immediately pause and mute during gesture
+        savedPlayStateRef.current = isPlaying;
+        setIsPlaying(false);
+        setVideoVolume(0);
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        const dy = gestureState.dy;
+        const absDy = Math.abs(dy);
+        const progress = Math.min(absDy / H, 1);
+        setSwipeProgress(progress);
+        // Fade audio out based on progress (handled by volume state)
+        const newVolume = Math.max(0, 1 - progress * 2);
+        setVideoVolume(newVolume);
+        onSwipeProgress?.(dy);
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        const dy = gestureState.dy;
+        const absDy = Math.abs(dy);
+        const velocity = gestureState.vy;
+        const completed = absDy > SWIPE_THRESHOLD || Math.abs(velocity) > 150;
+
+        if (completed) {
+          onSwipeGestureEnd?.(true);
+        } else {
+          // Bounce back — restore playback
+          onSwipeGestureEnd?.(false);
+          setVideoVolume(1);
+          if (savedPlayStateRef.current && isActive) {
+            setIsPlaying(true);
+          }
+        }
+        setSwipeProgress(0);
+        setSwipeDirection(null);
+      },
+      onPanResponderTerminate: () => {
+        // Gesture interrupted — restore
+        onSwipeGestureEnd?.(false);
+        setVideoVolume(1);
+        if (savedPlayStateRef.current && isActive) {
+          setIsPlaying(true);
+        }
+        setSwipeProgress(0);
+        setSwipeDirection(null);
+      },
+    });
+  }, [H, isPlaying, isActive, onSwipeGestureStart, onSwipeGestureEnd, onSwipeProgress]);
 
   return (
     <View style={{ width: W, height: H, backgroundColor: '#000' }}>
-      {/* In pre-buffer mode, hide StatusBar to avoid overhead */}
-      {!preloadBuffer && (
-        <StatusBar barStyle="light-content" backgroundColor="#000" translucent={false} />
-      )}
+      <StatusBar barStyle="light-content" backgroundColor="#000" translucent={false} />
 
-      {/* Video - same instance is reused when transitioning from preload to active */}
+      {/* ===== MAIN PLAYBACK INSTANCE ===== */}
+      {/* Mount ONLY when active (key forces full remount = fresh ExoPlayer) */}
+      {/* Unmount when inactive = pause + unbind Surface + destroy player */}
+      {isActive ? (
       <View style={{ position: 'absolute', top: 0, left: 0, width: W, height: H, overflow: 'hidden' }}>
         {videoUri ? (
           <Video
@@ -342,37 +576,40 @@ const SwipeVideoItem: React.FC<Props> = memo(({
             resizeMode={ResizeMode.CONTAIN}
             onLoad={handleLoad}
             onProgress={handleProgress}
-            onEnd={preloadBuffer ? () => {} : onVideoEnd}
+            onEnd={onVideoEnd}
             onError={handleError}
-            useNativeControls={false}
+            controls={false}
             repeat={false}
-            paused={preloadBuffer ? false : (!isActive || !isPlaying || !decoderReady)}
-            muted={preloadBuffer}
-            volume={preloadBuffer ? 0 : 1}
+            paused={!isPlaying || !decoderReady}
+            muted={isGestureActive}
+            volume={isGestureActive ? 0 : videoVolume}
             posterResizeMode={ResizeMode.CONTAIN}
             allowsExternalPlayback={false}
             playInBackground={false}
             playWhenInactive={false}
             progressUpdateInterval={1000}
-            rate={preloadBuffer ? 0 : playbackSpeed}
+            rate={playbackSpeed}
             bufferConfig={{
-              minBufferMs: preloadBuffer ? 5000 : 15000,
-              maxBufferMs: preloadBuffer ? 15000 : 50000,
+              minBufferMs: 15000,
+              maxBufferMs: 50000,
               bufferForPlaybackMs: 2500,
               bufferForPlaybackAfterRebufferMs: 5000,
             }}
-            controls={false}
           />
         ) : (
           <View style={styles.centerOverlay}>
-            <Text style={styles.errorText}>No video</Text>
+            <Text style={styles.errorText}>{t('no_video')}</Text>
           </View>
         )}
       </View>
+      ) : (
+      <View style={[styles.centerOverlay, { backgroundColor: '#000' }]}>
+        <ActivityIndicator size="small" color="rgba(255,255,255,0.3)" />
+      </View>
+      )}
 
-      {/* ===== Pre-buffer mode: no UI overlays ===== */}
-      {preloadBuffer ? null : (
-        <>
+      {/* ===== UI Overlays ===== */}
+      <>
 
       {/* Danmaku overlay */}
       {isActive && (
@@ -383,6 +620,7 @@ const SwipeVideoItem: React.FC<Props> = memo(({
           opacity={danmakuOpacity}
           refreshTrigger={danmakuRefresh}
           screenWidth={W}
+          screenHeight={H}
         />
       )}
 
@@ -396,23 +634,59 @@ const SwipeVideoItem: React.FC<Props> = memo(({
       {/* Error */}
       {hasError && !isLoading && (
         <View style={styles.centerOverlay}>
-          <Text style={styles.errorText}>Playback Error</Text>
+          <Text style={styles.errorText}>{t('playback_error')}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={retryPlay} activeOpacity={0.7}>
-            <Text style={styles.retryText}>Retry</Text>
+            <Text style={styles.retryText}>{t('retry')}</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {/* Tap to play/pause (with double-tap seek) */}
+      {/* ===== Interactive touch area (double-tap like, long-press seek, single-tap pause) ===== */}
       {isActive && !isLoading && !hasError && (
-        <TouchableOpacity
+        <View
           style={StyleSheet.absoluteFill}
-          activeOpacity={1}
-          onPress={(e) => {
-            handleDoubleTapArea(e.nativeEvent.locationX);
-            togglePlayPause();
-          }}
-        />
+          {...panResponder.panHandlers}
+        >
+          {/* Left zone (30%): long-press to rewind */}
+          <TouchableOpacity
+            style={[styles.touchZone, styles.touchZoneLeft]}
+            activeOpacity={1}
+            onPress={(e) => handleTap(e.nativeEvent.locationX, e.nativeEvent.locationY)}
+            onLongPress={(e) => handleLongPressStart(0)}
+            onPressOut={handleLongPressEnd}
+            delayLongPress={200}
+          />
+          {/* Center zone (40%): tap to play/pause only */}
+          <TouchableOpacity
+            style={styles.touchZoneCenter}
+            activeOpacity={1}
+            onPress={(e) => handleTap(e.nativeEvent.locationX, e.nativeEvent.locationY)}
+          />
+          {/* Right zone (30%): long-press to fast-forward */}
+          <TouchableOpacity
+            style={[styles.touchZone, styles.touchZoneRight]}
+            activeOpacity={1}
+            onPress={(e) => handleTap(e.nativeEvent.locationX, e.nativeEvent.locationY)}
+            onLongPress={(e) => handleLongPressStart(W)}
+            onPressOut={handleLongPressEnd}
+            delayLongPress={200}
+          />
+        </View>
+      )}
+
+      {/* ===== Floating hearts from double-tap ===== */}
+      {hearts.map(h => (
+        <FloatingHeart key={h.id} x={h.x} y={h.y} onComplete={() => removeHeart(h.id)} />
+      ))}
+
+      {/* ===== Seek feedback overlay (long-press) ===== */}
+      {longPressSeek && (
+        <SeekFeedback type={longPressSeek} visible={true} label={longPressSeek === 'forward' ? t('seek_forward') : t('seek_backward')} />
+      )}
+
+      {/* ===== Swipe progress indicator ===== */}
+      {swipeDirection && swipeProgress > 0.05 && (
+        <SwipeIndicator direction={swipeDirection} progress={swipeProgress} />
       )}
 
       {/* ===== Top bar ===== */}
@@ -440,40 +714,31 @@ const SwipeVideoItem: React.FC<Props> = memo(({
       )}
 
       {/* Play/Pause center */}
-      {!isLoading && !isPlaying && !hasError && isActive && (
+      {!isLoading && !isPlaying && !hasError && isActive && !longPressSeek && (
         <TouchableOpacity style={styles.playBtnCenter} onPress={togglePlayPause} activeOpacity={0.8}>
           <Text style={styles.playIconCenter}>{'\u25B6'}</Text>
         </TouchableOpacity>
       )}
 
-      {/* ===== Right side actions (always visible) ===== */}
+      {/* ===== Right side actions ===== */}
       {!hasError && (
-        <View style={[styles.rightActions, { bottom: H * 0.28 }]}>
+        <View style={[styles.rightActions, { bottom: H * 0.30 }]}>
           <ActionIcon icon={isLiked ? '\u{2764}\u{FE0F}' : '\u{1F90D}'} label={formatNumber(likeCount)} active={isLiked} onPress={() => onToggleLike(data.drama_id)} />
           <ActionIcon icon={isFavorited ? '\u{2B50}' : '\u{2606}'} label={formatNumber(collectCount)} active={isFavorited} onPress={() => onToggleFavorite(data.drama_id)} />
           <ActionIcon icon={'\u{1F4AC}'} label={formatNumber(commentCount)} active={false} onPress={() => { setShowComments(true); setIsPlaying(false); }} />
-          <ActionIcon icon={danmakuEnabled ? '\u{1F5E3}\u{FE0F}' : '\u{1F507}'} label={danmakuEnabled ? '弹幕开' : '弹幕关'} active={danmakuEnabled} onPress={() => {
-            setDanmakuEnabled(!danmakuEnabled);
-          }} />
+          <ActionIcon icon={danmakuEnabled ? '\u{1F5E3}\u{FE0F}' : '\u{1F507}'} label={danmakuEnabled ? t('danmaku_on') : t('danmaku_off')} active={danmakuEnabled} onPress={() => setDanmakuEnabled(!danmakuEnabled)} />
         </View>
       )}
 
-      {/* ===== Bottom bar (Hongguo style: progress + action row) ===== */}
+      {/* ===== Bottom bar ===== */}
       {!hasError && (
-        <View style={styles.bottomBar}>
+        <View style={[styles.bottomBar, { paddingBottom: bottomSafePad }]}>
           {/* Progress bar */}
           <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: progressPercent + '%' }]} />
-            <View style={[styles.progressThumb, { left: progressPercent + '%' }]} />
+            <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+            <View style={[styles.progressThumb, { left: `${progressPercent}%` }]} />
             <TouchableOpacity
               style={[styles.progressTouchArea, { width: progressWidth }]}
-              onMove={(e: any) => {
-                try {
-                  const lx = e.nativeEvent.locationX;
-                  const pos = Math.max(0, Math.min(lx / progressWidth, 1)) * duration;
-                  handleSeekStart(pos);
-                } catch (_) {}
-              }}
               onPress={(e: any) => {
                 try {
                   const lx = e.nativeEvent.locationX;
@@ -485,56 +750,56 @@ const SwipeVideoItem: React.FC<Props> = memo(({
             />
           </View>
 
-          {/* Bottom action row: title, controls, share */}
+          {/* Bottom action row: info + buttons — always fully visible */}
           <View style={styles.bottomActionRow}>
-            {/* Left: drama info + episode indicator */}
             <View style={styles.bottomInfo}>
               <Text style={styles.bottomDramaTitle} numberOfLines={1}>{data.drama_title || ''}</Text>
               <Text style={styles.bottomEpText}>EP.{data.episode_number}/{data.episode_count || totalEpisodes}</Text>
             </View>
-
-            {/* Right: action buttons */}
             <View style={styles.bottomBtns}>
               <TouchableOpacity style={styles.bottomBtn} onPress={() => setShowEpisodes(true)} activeOpacity={0.7}>
                 <Text style={styles.bottomBtnIcon}>{'\u2630'}</Text>
-                <Text style={styles.bottomBtnLabel}>{'\u9009\u96C6'}</Text>
+                <Text style={styles.bottomBtnLabel}>{t('episodes')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.bottomBtn} onPress={() => setShowSpeedSelector(true)} activeOpacity={0.7}>
                 <Text style={styles.bottomBtnIcon}>{playbackSpeed === 1 ? '\u25B6' : `${playbackSpeed}x`}</Text>
-                <Text style={styles.bottomBtnLabel}>{'\u901F\u5EA6'}</Text>
+                <Text style={styles.bottomBtnLabel}>{t('speed')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.bottomBtn} onPress={() => setShowAdReward(true)} activeOpacity={0.7}>
                 <Text style={[styles.bottomBtnIcon, styles.adBtnIcon]}>{'\u2605'}</Text>
-                <Text style={[styles.bottomBtnLabel, styles.adBtnLabel]}>{'\u514D\u8D39'}</Text>
+                <Text style={[styles.bottomBtnLabel, styles.adBtnLabel]}>{t('free')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.bottomBtn} onPress={handleShare} activeOpacity={0.7}>
                 <Text style={styles.bottomBtnIcon}>{'\u21C4'}</Text>
-                <Text style={styles.bottomBtnLabel}>{'\u5206\u4EAB'}</Text>
+                <Text style={styles.bottomBtnLabel}>{t('share')}</Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Danmaku input (always visible) */}
-          <View style={styles.danmakuInputRow}>
-            <TextInput
-              style={styles.danmakuInput}
-              placeholder="发个弹幕..."
-              placeholderTextColor="rgba(255,255,255,0.3)"
-              value={danmakuInput}
-              onChangeText={setDanmakuInput}
-              maxLength={50}
-              onSubmitEditing={handleSendDanmaku}
-              returnKeyType="send"
-            />
-            <TouchableOpacity style={styles.danmakuSendBtn} onPress={handleSendDanmaku} activeOpacity={0.7}>
-              <Text style={styles.danmakuSendText}>{'\u53D1\u9001'}</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Danmaku input — only shown when user taps to expand */}
+          {showDanmakuInput && (
+            <View style={styles.danmakuInputRow}>
+              <TextInput
+                style={styles.danmakuInput}
+                placeholder={t('send_danmaku_hint')}
+                placeholderTextColor="rgba(255,255,255,0.3)"
+                value={danmakuInput}
+                onChangeText={setDanmakuInput}
+                maxLength={50}
+                autoFocus
+                onSubmitEditing={handleSendDanmaku}
+                returnKeyType="send"
+                onBlur={() => setShowDanmakuInput(false)}
+              />
+              <TouchableOpacity style={styles.danmakuSendBtn} onPress={handleSendDanmaku} activeOpacity={0.7}>
+                <Text style={styles.danmakuSendText}>{t('send')}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       )}
 
       {/* ===== Modals ===== */}
-      {/* Speed selector */}
       <SpeedSelector
         visible={showSpeedSelector}
         currentSpeed={playbackSpeed}
@@ -542,7 +807,6 @@ const SwipeVideoItem: React.FC<Props> = memo(({
         onClose={() => setShowSpeedSelector(false)}
       />
 
-      {/* Ad reward modal */}
       <AdRewardModal
         visible={showAdReward}
         dramaId={data.drama_id}
@@ -552,18 +816,16 @@ const SwipeVideoItem: React.FC<Props> = memo(({
         onClaimed={async (points) => {
           try {
             const result = await adRewardService.claimReward(data.drama_id, data.id);
-            Alert.alert('奖励领取成功!', `+${result.points} 积分已到账! 余额: ${result.balance}`);
-            // Refresh wallet to update points balance
+            Alert.alert(t('reward_claimed'), `+${result.points} ${t('points')}\n${t('reward_balance', { balance: result.balance })}`);
             loadPoints();
           } catch (err: any) {
             const msg = err?.response?.data?.message || err?.message || 'Failed to claim reward';
-            Alert.alert('领取失败', msg);
+            Alert.alert(t('claim_failed'), msg);
           }
           setShowAdReward(false);
         }}
       />
 
-      {/* Comment panel */}
       <CommentPanel
         visible={showComments}
         dramaId={data.drama_id}
@@ -574,7 +836,6 @@ const SwipeVideoItem: React.FC<Props> = memo(({
         }}
       />
 
-      {/* Episode selector */}
       <EpisodeSelector
         visible={showEpisodes}
         episodes={episodes}
@@ -582,8 +843,7 @@ const SwipeVideoItem: React.FC<Props> = memo(({
         onSelect={onSwitchEpisode}
         onClose={() => setShowEpisodes(false)}
       />
-        </>
-      )}
+
     </View>
   );
 });
@@ -601,85 +861,135 @@ const ActionIcon: React.FC<{ icon: string; label: string; active: boolean; onPre
 const styles = StyleSheet.create({
   centerOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center' },
 
+  // Touch zones for double-tap like / long-press seek
+  touchZone: { flex: 1, justifyContent: 'center' },
+  touchZoneLeft: { width: '30%' },
+  touchZoneCenter: { width: '40%', position: 'absolute', left: '30%', top: 0, bottom: 0 },
+  touchZoneRight: { width: '30%', position: 'absolute', right: 0, top: 0, bottom: 0 },
+
+  // Seek feedback overlay
+  seekOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    zIndex: 150,
+  },
+  seekCircle: {
+    width: scale(80),
+    height: scale(80),
+    borderRadius: scale(40),
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  seekIcon: { color: '#FFF', fontSize: rf(24) },
+  seekLabel: { color: '#FFF', fontSize: rf(12), marginTop: scale(4) },
+
+  // Swipe progress indicator
+  swipeIndicator: {
+    position: 'absolute',
+    left: scale(40),
+    right: scale(40),
+    height: scale(4),
+    borderRadius: scale(2),
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    overflow: 'hidden',
+    zIndex: 180,
+  },
+  swipeIndicatorUp: { top: scale(60) },
+  swipeIndicatorDown: { bottom: scale(120) },
+  swipeIndicatorFill: {
+    height: '100%',
+    borderRadius: scale(2),
+    backgroundColor: 'rgba(255,255,255,0.7)',
+  },
+  swipeIndicatorText: {
+    position: 'absolute',
+    right: -scale(20),
+    top: -scale(8),
+    color: '#FFF',
+    fontSize: rf(12),
+  },
+
   // Top
   topFade: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.45)' },
-  topBar: { flexDirection: 'row', alignItems: 'center', paddingBottom: 10, paddingHorizontal: 12 },
-  epBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: 'rgba(255,71,87,0.85)' },
-  epBadgeText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
-  titleBox: { flex: 1, marginLeft: 10 },
-  dramaTitle: { color: '#FFF', fontSize: 16, fontWeight: '700' },
-  epTitle: { color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 2 },
+  topBar: { flexDirection: 'row', alignItems: 'center', paddingBottom: scale(10), paddingHorizontal: scale(12) },
+  epBadge: { paddingHorizontal: scale(10), paddingVertical: scale(4), borderRadius: scale(12), backgroundColor: 'rgba(255,71,87,0.85)' },
+  epBadgeText: { color: '#FFF', fontSize: rf(13), fontWeight: '700' },
+  titleBox: { flex: 1, marginLeft: scale(10) },
+  dramaTitle: { color: '#FFF', fontSize: rf(16), fontWeight: '700' },
+  epTitle: { color: 'rgba(255,255,255,0.7)', fontSize: rf(13), marginTop: scale(2) },
   topRight: { alignItems: 'flex-end' },
-  lockBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: 'rgba(255,184,0,0.85)' },
-  lockText: { color: '#000', fontSize: 11, fontWeight: '700' },
+  lockBadge: { paddingHorizontal: scale(8), paddingVertical: scale(3), borderRadius: scale(8), backgroundColor: 'rgba(255,184,0,0.85)' },
+  lockText: { color: '#000', fontSize: rf(11), fontWeight: '700' },
 
   // Play center
-  playBtnCenter: { position: 'absolute', width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', alignSelf: 'center' },
-  playIconCenter: { color: '#FFF', fontSize: 28, marginLeft: 4 },
+  playBtnCenter: { position: 'absolute', width: scale(64), height: scale(64), borderRadius: scale(32), backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', alignSelf: 'center' },
+  playIconCenter: { color: '#FFF', fontSize: rf(28), marginLeft: scale(4) },
 
   // Error
-  errorText: { color: 'rgba(255,255,255,0.7)', fontSize: 16, marginBottom: 16 },
-  retryBtn: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)' },
-  retryText: { color: '#FFF', fontSize: 15, fontWeight: '600' },
+  errorText: { color: 'rgba(255,255,255,0.7)', fontSize: rf(16), marginBottom: scale(16) },
+  retryBtn: { paddingHorizontal: scale(24), paddingVertical: scale(10), borderRadius: scale(20), backgroundColor: 'rgba(255,255,255,0.2)' },
+  retryText: { color: '#FFF', fontSize: rf(15), fontWeight: '600' },
 
-  // Right actions (Hongguo style) - bottom set dynamically via inline style
-  rightActions: { position: 'absolute', right: 10, alignItems: 'center' },
-  actionBtn: { alignItems: 'center', marginBottom: 20 },
-  actionIcon: { fontSize: 30, color: '#FFF' },
+  // Right actions
+  rightActions: { position: 'absolute', right: scale(10), alignItems: 'center' },
+  actionBtn: { alignItems: 'center', marginBottom: scale(20) },
+  actionIcon: { fontSize: rf(28), color: '#FFF' },
   actionIconActive: { color: COLORS.primaryLight },
-  actionLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '600', marginTop: 4 },
+  actionLabel: { color: 'rgba(255,255,255,0.85)', fontSize: rf(11), fontWeight: '600', marginTop: scale(4) },
   actionLabelActive: { color: COLORS.primaryLight },
 
-  // Bottom bar (Hongguo style: progress + action row)
+  // Bottom bar
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingTop: 8,
-    paddingBottom: Platform.OS === 'android' ? 8 : 24,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingTop: scale(8),
   },
   bottomActionRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingLeft: 14, paddingRight: 10, marginTop: 4,
+    paddingLeft: scale(12), paddingRight: scale(8), marginTop: scale(4),
   },
-  bottomInfo: { flex: 1, marginRight: 10 },
-  bottomDramaTitle: { color: '#FFF', fontSize: 14, fontWeight: '700' },
-  bottomEpText: { color: 'rgba(255,255,255,0.6)', fontSize: 12, marginTop: 2 },
-  bottomBtns: { flexDirection: 'row', gap: 4, alignItems: 'center' },
+  bottomInfo: { flex: 1, marginRight: scale(8) },
+  bottomDramaTitle: { color: '#FFF', fontSize: rf(14), fontWeight: '700' },
+  bottomEpText: { color: 'rgba(255,255,255,0.6)', fontSize: rf(12), marginTop: scale(2) },
+  bottomBtns: { flexDirection: 'row', gap: scale(6), alignItems: 'center' },
   bottomBtn: {
     alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: 8, paddingVertical: 4,
-    backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 14,
+    paddingHorizontal: scale(10), paddingVertical: scale(6),
+    backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: scale(14),
   },
-  bottomBtnIcon: { fontSize: 20, color: '#FFF' },
-  bottomBtnLabel: { fontSize: 10, color: 'rgba(255,255,255,0.8)', fontWeight: '500', marginTop: 1 },
+  bottomBtnIcon: { fontSize: rf(18), color: '#FFF' },
+  bottomBtnLabel: { fontSize: rf(10), color: 'rgba(255,255,255,0.8)', fontWeight: '500', marginTop: scale(1) },
   adBtnIcon: { color: COLORS.gold },
   adBtnLabel: { color: COLORS.gold },
 
   // Progress bar
-  progressTrack: { height: 24, justifyContent: 'center', position: 'relative', marginLeft: 14, marginRight: 14 },
-  progressFill: { height: 3, borderRadius: 1.5, backgroundColor: COLORS.primaryLight, position: 'absolute', left: 0, top: 10.5 },
+  progressTrack: { height: scale(24), justifyContent: 'center', position: 'relative', marginLeft: scale(12), marginRight: scale(12) },
+  progressFill: { height: scale(3), borderRadius: scale(1.5), backgroundColor: COLORS.primaryLight, position: 'absolute', left: 0, top: scale(10.5) },
   progressThumb: {
-    position: 'absolute', width: 14, height: 14, borderRadius: 7,
-    backgroundColor: '#FFF', marginLeft: -7, top: 5,
+    position: 'absolute', width: scale(14), height: scale(14), borderRadius: scale(7),
+    backgroundColor: '#FFF', marginLeft: -scale(7), top: scale(5),
     elevation: 2, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 2, shadowOffset: { width: 0, height: 1 },
   },
-  progressTouchArea: { height: 24 },
+  progressTouchArea: { height: scale(24) },
 
-  // Danmaku input
+  // Danmaku input — only visible when expanded
   danmakuInputRow: {
     flexDirection: 'row', alignItems: 'center',
-    marginHorizontal: 16, marginTop: 8, gap: 8,
+    marginHorizontal: scale(12), marginTop: scale(8), gap: scale(8),
   },
   danmakuInput: {
-    flex: 1, height: 38, borderRadius: 19,
+    flex: 1, height: scale(36), borderRadius: scale(18),
     backgroundColor: 'rgba(255,255,255,0.12)',
-    paddingHorizontal: 16, color: '#FFF', fontSize: 14,
+    paddingHorizontal: scale(16), color: '#FFF', fontSize: rf(14),
   },
   danmakuSendBtn: {
-    paddingHorizontal: 16, height: 38, borderRadius: 19,
+    paddingHorizontal: scale(16), height: scale(36), borderRadius: scale(18),
     backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center',
   },
-  danmakuSendText: { color: '#FFF', fontSize: 14, fontWeight: '600' },
+  danmakuSendText: { color: '#FFF', fontSize: rf(14), fontWeight: '600' },
 });
 
 export default SwipeVideoItem;

@@ -7,8 +7,10 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useWalletStore, useAuthStore } from '../../stores';
 import { useToast } from '../../hooks';
+import { useNavigation } from '@react-navigation/native';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
-import { COLORS, SPACING } from '../../utils/constants';
+import { COLORS } from '../../utils/constants';
+import { rf, scale, getSpacing } from '../../utils/responsive';
 import { formatPrice, formatNumber } from '../../utils/format';
 import { paymentService } from '../../services';
 import type { RechargePackage } from '../../types';
@@ -16,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 export const WalletTab: React.FC = () => {
   const { t } = useTranslation();
+  const navigation = useNavigation();
   const {
     points, packages, todaySignedIn, isLoading,
     loadPoints, loadPackages, signin,
@@ -25,6 +28,9 @@ export const WalletTab: React.FC = () => {
   const [isPaying, setIsPaying] = useState(false);
   const [selectedPkg, setSelectedPkg] = useState<RechargePackage | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  // Dynamic spacing
+  const sp = getSpacing();
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -80,7 +86,7 @@ export const WalletTab: React.FC = () => {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingHorizontal: sp.md, paddingTop: sp.lg, paddingBottom: sp.sm }]}>
         <Text style={styles.headerTitle}>{t('tab_rewards')}</Text>
       </View>
 
@@ -89,21 +95,21 @@ export const WalletTab: React.FC = () => {
         contentContainerStyle={styles.scrollContent}
       >
         {/* Points Balance Card */}
-        <View style={styles.balanceCard}>
+        <View style={[styles.balanceCard, { margin: sp.md, padding: sp.lg }]}>
           <Text style={styles.balanceLabel}>{t('points_balance')}</Text>
           <Text style={styles.balanceValue}>
             {points ? formatNumber(points.balance) : '---'}
           </Text>
           <TouchableOpacity
-            style={[styles.signinBtn, todaySignedIn && styles.signinBtnDone]}
+            style={[styles.signinBtn, todaySignedIn && styles.signinBtnDone, { marginTop: sp.md }]}
             onPress={onSignin}
             disabled={todaySignedIn || isPaying}
           >
             <Ionicons
               name={todaySignedIn ? "checkmark-circle" : "calendar"}
-              size={18}
+              size={scale(18)}
               color={todaySignedIn ? COLORS.success : COLORS.onPrimary}
-              style={{ marginRight: 6 }}
+              style={{ marginRight: scale(6) }}
             />
             <Text style={styles.signinText}>
               {todaySignedIn ? t('signed_in_today') : t('daily_signin')}
@@ -112,65 +118,65 @@ export const WalletTab: React.FC = () => {
         </View>
 
         {/* Task Center */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            <Ionicons name="list" size={18} color={COLORS.primary} />
-            {'  '}{t('task_center') || 'Task Center'}
+        <View style={[styles.section, { marginTop: sp.sm }]}>
+          <Text style={[styles.sectionTitle, { paddingHorizontal: sp.md, marginBottom: sp.sm }]}>
+            <Ionicons name="list" size={scale(18)} color={COLORS.primary} />
+            {'  '}{t('task_center')}
           </Text>
-          <View style={styles.taskList}>
-            <View style={styles.taskItem}>
+          <View style={[styles.taskList, { marginHorizontal: sp.md }]}>
+            <View style={[styles.taskItem, { padding: sp.md }]}>
               <View style={styles.taskLeft}>
-                <Ionicons name="play-circle" size={24} color={COLORS.secondary} />
+                <Ionicons name="play-circle" size={scale(24)} color={COLORS.secondary} />
                 <View style={styles.taskInfo}>
-                  <Text style={styles.taskName}>{t('task_watch') || 'Watch Drama'}</Text>
+                  <Text style={styles.taskName} numberOfLines={1}>{t('task_watch')}</Text>
                   <Text style={styles.taskReward}>+10 {t('points')}</Text>
                 </View>
               </View>
-              <TouchableOpacity style={styles.taskBtn}>
-                <Text style={styles.taskBtnText}>{t('go') || 'Go'}</Text>
+              <TouchableOpacity style={styles.taskBtn} onPress={() => navigation.navigate('HomeTab' as never)} activeOpacity={0.7}>
+                <Text style={styles.taskBtnText}>{t('go')}</Text>
               </TouchableOpacity>
             </View>
-            <View style={styles.taskItem}>
+            <View style={[styles.taskItem, { padding: sp.md }]}>
               <View style={styles.taskLeft}>
-                <Ionicons name="share-social" size={24} color={COLORS.secondary} />
+                <Ionicons name="share-social" size={scale(24)} color={COLORS.secondary} />
                 <View style={styles.taskInfo}>
-                  <Text style={styles.taskName}>{t('task_share') || 'Share Drama'}</Text>
+                  <Text style={styles.taskName} numberOfLines={1}>{t('task_share')}</Text>
                   <Text style={styles.taskReward}>+10 {t('points')}</Text>
                 </View>
               </View>
-              <TouchableOpacity style={styles.taskBtn}>
-                <Text style={styles.taskBtnText}>{t('go') || 'Go'}</Text>
+              <TouchableOpacity style={styles.taskBtn} onPress={() => navigation.navigate('HomeTab' as never)} activeOpacity={0.7}>
+                <Text style={styles.taskBtnText}>{t('go')}</Text>
               </TouchableOpacity>
             </View>
-            <View style={styles.taskItem}>
+            <View style={[styles.taskItem, { padding: sp.md }]}>
               <View style={styles.taskLeft}>
-                <Ionicons name="megaphone" size={24} color={COLORS.secondary} />
+                <Ionicons name="megaphone" size={scale(24)} color={COLORS.secondary} />
                 <View style={styles.taskInfo}>
-                  <Text style={styles.taskName}>{t('task_ad') || 'Watch Ad'}</Text>
+                  <Text style={styles.taskName} numberOfLines={1}>{t('task_ad')}</Text>
                   <Text style={styles.taskReward}>+5 {t('points')}</Text>
                 </View>
               </View>
-              <TouchableOpacity style={styles.taskBtn}>
-                <Text style={styles.taskBtnText}>{t('go') || 'Go'}</Text>
+              <TouchableOpacity style={styles.taskBtn} onPress={() => navigation.navigate('HomeTab' as never)} activeOpacity={0.7}>
+                <Text style={styles.taskBtnText}>{t('go')}</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
 
         {/* Recharge Packages */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            <Ionicons name="diamond" size={18} color={COLORS.gold} />
+        <View style={[styles.section, { marginTop: sp.sm }]}>
+          <Text style={[styles.sectionTitle, { paddingHorizontal: sp.md, marginBottom: sp.sm }]}>
+            <Ionicons name="diamond" size={scale(18)} color={COLORS.gold} />
             {'  '}{t('recharge')}
           </Text>
           {isLoading ? (
             <LoadingSpinner />
           ) : (
-            <View style={styles.packagesGrid}>
+            <View style={[styles.packagesGrid, { paddingHorizontal: sp.md }]}>
               {packages.map((pkg) => (
                 <TouchableOpacity
                   key={`pkg-${pkg.id}`}
-                  style={[styles.packageCard, pkg.is_hot && styles.packageHot]}
+                  style={[styles.packageCard, { padding: sp.md }, pkg.is_hot ? styles.packageHot : undefined]}
                   onPress={() => onRecharge(pkg)}
                   disabled={isPaying}
                 >
@@ -179,16 +185,16 @@ export const WalletTab: React.FC = () => {
                       <Text style={styles.hotText}>{t('hot')}</Text>
                     </View>
                   )}
-                  <Text style={styles.packageName}>{pkg.name}</Text>
+                  <Text style={[styles.packageName, { marginBottom: scale(4) }]}>{pkg.name}</Text>
                   <Text style={styles.packagePoints}>
                     {t('points_count', { count: formatNumber(pkg.points + pkg.bonus_points) })}
                   </Text>
                   {pkg.bonus_points > 0 && (
-                    <Text style={styles.packageBonus}>
+                    <Text style={[styles.packageBonus, { marginTop: scale(2) }]}>
                       {t('bonus_count', { count: formatNumber(pkg.bonus_points) })}
                     </Text>
                   )}
-                  <Text style={styles.packagePrice}>{formatPrice(pkg.price)}</Text>
+                  <Text style={[styles.packagePrice, { marginTop: scale(4) }]}>{formatPrice(pkg.price)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -199,23 +205,23 @@ export const WalletTab: React.FC = () => {
       {/* Payment Confirm Modal */}
       <Modal visible={showConfirm} transparent animationType="fade" onRequestClose={() => setShowConfirm(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{t('confirm_purchase')}</Text>
+          <View style={[styles.modalCard, { padding: sp.lg }]}>
+            <Text style={[styles.modalTitle, { marginBottom: sp.md }]}>{t('confirm_purchase')}</Text>
             {selectedPkg && (
               <>
                 <Text style={styles.modalPkgName}>{selectedPkg.name}</Text>
-                <Text style={styles.modalPoints}>
+                <Text style={[styles.modalPoints, { marginVertical: scale(4) }]}>
                   {t('points_count', { count: formatNumber(selectedPkg.points + selectedPkg.bonus_points) })}
                 </Text>
-                <Text style={styles.modalPrice}>{formatPrice(selectedPkg.price)}</Text>
-                <Text style={styles.modalHint}>{t('paypal_hint')}</Text>
+                <Text style={[styles.modalPrice, { marginBottom: sp.md }]}>{formatPrice(selectedPkg.price)}</Text>
+                <Text style={[styles.modalHint, { marginBottom: sp.lg }]}>{t('paypal_hint')}</Text>
               </>
             )}
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowConfirm(false)}>
+              <TouchableOpacity style={[styles.modalCancelBtn, { padding: sp.sm, marginRight: sp.md }]} onPress={() => setShowConfirm(false)}>
                 <Text style={styles.modalCancelText}>{t('cancel')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalConfirmBtn} onPress={confirmRecharge}>
+              <TouchableOpacity style={[styles.modalConfirmBtn, { padding: sp.sm }]} onPress={confirmRecharge}>
                 <Text style={styles.modalConfirmText}>{t('pay_with_paypal')}</Text>
               </TouchableOpacity>
             </View>
@@ -227,7 +233,7 @@ export const WalletTab: React.FC = () => {
       {isPaying && (
         <View style={styles.payingOverlay}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.payingText}>{t('processing_payment')}</Text>
+          <Text style={[styles.payingText, { marginTop: sp.md }]}>{t('processing_payment')}</Text>
         </View>
       )}
     </View>
@@ -238,58 +244,46 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   center: { justifyContent: 'center', alignItems: 'center' },
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: scale(100),
   },
-  header: {
-    paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.lg,
-    paddingBottom: SPACING.sm,
-  },
+  header: {},
   headerTitle: {
-    fontSize: 24,
+    fontSize: rf(24),
     fontWeight: 'bold',
     color: COLORS.onSurface,
   },
-  loginHint: { color: COLORS.onSurfaceVariant, fontSize: 16 },
+  loginHint: { color: COLORS.onSurfaceVariant, fontSize: rf(16) },
 
   // Balance card
   balanceCard: {
-    margin: SPACING.md,
-    padding: SPACING.lg,
-    borderRadius: 16,
+    borderRadius: scale(16),
     backgroundColor: COLORS.surface,
     alignItems: 'center',
   },
-  balanceLabel: { color: COLORS.onSurfaceVariant, fontSize: 14, marginBottom: 4 },
-  balanceValue: { color: COLORS.primary, fontSize: 48, fontWeight: 'bold' },
+  balanceLabel: { color: COLORS.onSurfaceVariant, fontSize: rf(14), marginBottom: scale(4) },
+  balanceValue: { color: COLORS.primary, fontSize: rf(48), fontWeight: 'bold' },
   signinBtn: {
-    marginTop: SPACING.md,
-    paddingHorizontal: 28,
-    paddingVertical: 12,
-    borderRadius: 24,
+    paddingHorizontal: scale(28),
+    paddingVertical: scale(12),
+    borderRadius: scale(24),
     backgroundColor: COLORS.primary,
     flexDirection: 'row',
     alignItems: 'center',
   },
   signinBtnDone: { backgroundColor: COLORS.surfaceLight },
-  signinText: { color: COLORS.onPrimary, fontSize: 15, fontWeight: '600' },
+  signinText: { color: COLORS.onPrimary, fontSize: rf(15), fontWeight: '600' },
 
   // Section
-  section: {
-    marginTop: SPACING.sm,
-  },
+  section: {},
   sectionTitle: {
-    fontSize: 18,
+    fontSize: rf(18),
     fontWeight: '600',
     color: COLORS.onSurface,
-    paddingHorizontal: SPACING.md,
-    marginBottom: SPACING.sm,
   },
 
   // Task center
   taskList: {
-    marginHorizontal: SPACING.md,
-    borderRadius: 12,
+    borderRadius: scale(12),
     backgroundColor: COLORS.surface,
     overflow: 'hidden',
   },
@@ -297,37 +291,41 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: SPACING.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.outline,
   },
   taskLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.sm,
+    gap: scale(8),
+    flexShrink: 1,
   },
   taskInfo: {
     flex: 1,
+    minWidth: 0,
   },
   taskName: {
     color: COLORS.onSurface,
-    fontSize: 15,
+    fontSize: rf(14),
     fontWeight: '500',
   },
   taskReward: {
     color: COLORS.gold,
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: rf(11),
+    marginTop: scale(2),
   },
   taskBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: scale(20),
+    paddingVertical: scale(7),
+    borderRadius: scale(16),
     backgroundColor: COLORS.primary,
+    flexShrink: 0,
+    minWidth: scale(52),
+    alignItems: 'center',
   },
   taskBtnText: {
     color: COLORS.onPrimary,
-    fontSize: 13,
+    fontSize: rf(13),
     fontWeight: '600',
   },
 
@@ -335,13 +333,11 @@ const styles = StyleSheet.create({
   packagesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: SPACING.md,
   },
   packageCard: {
     width: '47%',
     margin: '1.5%',
-    padding: SPACING.md,
-    borderRadius: 12,
+    borderRadius: scale(12),
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.outline,
@@ -351,18 +347,18 @@ const styles = StyleSheet.create({
   packageHot: { borderColor: COLORS.gold },
   hotBadge: {
     position: 'absolute',
-    top: -6,
-    right: -6,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
+    top: -scale(6),
+    right: -scale(6),
+    paddingHorizontal: scale(8),
+    paddingVertical: scale(2),
+    borderRadius: scale(10),
     backgroundColor: COLORS.gold,
   },
-  hotText: { color: '#000', fontSize: 10, fontWeight: 'bold' },
-  packageName: { color: COLORS.onSurface, fontSize: 14, fontWeight: '600', marginBottom: 4 },
-  packagePoints: { color: COLORS.primary, fontSize: 18, fontWeight: 'bold' },
-  packageBonus: { color: COLORS.gold, fontSize: 12, marginTop: 2 },
-  packagePrice: { color: COLORS.onSurfaceVariant, fontSize: 14, marginTop: 4 },
+  hotText: { color: '#000', fontSize: rf(10), fontWeight: 'bold' },
+  packageName: { color: COLORS.onSurface, fontSize: rf(14), fontWeight: '600' },
+  packagePoints: { color: COLORS.primary, fontSize: rf(18), fontWeight: 'bold' },
+  packageBonus: { color: COLORS.gold, fontSize: rf(12) },
+  packagePrice: { color: COLORS.onSurfaceVariant, fontSize: rf(14) },
 
   // Modal
   modalOverlay: {
@@ -373,35 +369,31 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     width: '85%',
-    maxWidth: 340,
-    padding: SPACING.lg,
-    borderRadius: 16,
+    maxWidth: scale(340),
+    borderRadius: scale(16),
     backgroundColor: COLORS.surface,
     alignItems: 'center',
   },
-  modalTitle: { color: COLORS.onSurface, fontSize: 20, fontWeight: 'bold', marginBottom: SPACING.md },
-  modalPkgName: { color: COLORS.onSurface, fontSize: 18, fontWeight: '600' },
-  modalPoints: { color: COLORS.primary, fontSize: 24, fontWeight: 'bold', marginVertical: 4 },
-  modalPrice: { color: COLORS.gold, fontSize: 20, fontWeight: 'bold', marginBottom: SPACING.md },
-  modalHint: { color: COLORS.onSurfaceVariant, fontSize: 13, textAlign: 'center', marginBottom: SPACING.lg, lineHeight: 18 },
+  modalTitle: { color: COLORS.onSurface, fontSize: rf(20), fontWeight: 'bold' },
+  modalPkgName: { color: COLORS.onSurface, fontSize: rf(18), fontWeight: '600' },
+  modalPoints: { color: COLORS.primary, fontSize: rf(24), fontWeight: 'bold' },
+  modalPrice: { color: COLORS.gold, fontSize: rf(20), fontWeight: 'bold' },
+  modalHint: { color: COLORS.onSurfaceVariant, fontSize: rf(13), textAlign: 'center', lineHeight: scale(18) },
   modalActions: { flexDirection: 'row', width: '100%' },
   modalCancelBtn: {
     flex: 1,
-    padding: SPACING.sm,
-    borderRadius: 12,
+    borderRadius: scale(12),
     backgroundColor: COLORS.secondaryContainer,
     alignItems: 'center',
-    marginRight: SPACING.md,
   },
-  modalCancelText: { color: COLORS.onSurface, fontSize: 15, fontWeight: '600' },
+  modalCancelText: { color: COLORS.onSurface, fontSize: rf(15), fontWeight: '600' },
   modalConfirmBtn: {
     flex: 1,
-    padding: SPACING.sm,
-    borderRadius: 12,
+    borderRadius: scale(12),
     backgroundColor: '#0070BA',
     alignItems: 'center',
   },
-  modalConfirmText: { color: '#FFF', fontSize: 15, fontWeight: '600' },
+  modalConfirmText: { color: '#FFF', fontSize: rf(15), fontWeight: '600' },
   payingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.7)',
@@ -409,5 +401,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 999,
   },
-  payingText: { color: COLORS.onSurface, fontSize: 16, marginTop: SPACING.md },
+  payingText: { color: COLORS.onSurface, fontSize: rf(16) },
 });

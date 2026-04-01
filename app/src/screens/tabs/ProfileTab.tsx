@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuthStore, useWalletStore } from '../../stores';
 import { COLORS, SPACING } from '../../utils/constants';
 import { formatNumber } from '../../utils/format';
+import { scale, rf, getSpacing } from '../../utils/responsive';
 import { Ionicons } from '@expo/vector-icons';
 
 export const ProfileTab: React.FC = () => {
@@ -48,13 +49,13 @@ export const ProfileTab: React.FC = () => {
         {
           icon: 'notifications-outline',
           iconColor: '#FFA502',
-          label: t('messages') || 'Messages',
+          label: t('messages'),
           screen: null,
         },
         {
           icon: 'download-outline',
           iconColor: '#2ED573',
-          label: t('offline_cache') || 'Offline Cache',
+          label: t('offline_cache'),
           screen: null,
         },
       ],
@@ -64,7 +65,7 @@ export const ProfileTab: React.FC = () => {
         {
           icon: 'help-circle-outline',
           iconColor: '#A29BFE',
-          label: t('help_feedback') || 'Help & Feedback',
+          label: t('help_feedback'),
           screen: null,
         },
         {
@@ -108,12 +109,12 @@ export const ProfileTab: React.FC = () => {
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statValue}>0</Text>
-            <Text style={styles.statLabel}>{t('watch_history') || 'History'}</Text>
+            <Text style={styles.statLabel}>{t('watch_history')}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statValue}>0</Text>
-            <Text style={styles.statLabel}>{t('my_favorites') || 'Favorites'}</Text>
+            <Text style={styles.statLabel}>{t('my_favorites')}</Text>
           </View>
         </View>
 
@@ -128,7 +129,7 @@ export const ProfileTab: React.FC = () => {
                 activeOpacity={0.7}
               >
                 <View style={[styles.menuIconBox, { backgroundColor: item.iconColor + '22' }]}>
-                  <Ionicons name={item.icon} size={22} color={item.iconColor} />
+                  <Ionicons name={item.icon as any} size={22} color={item.iconColor} />
                 </View>
                 <Text style={styles.menuLabel}>{item.label}</Text>
                 <Ionicons name="chevron-forward" size={18} color={COLORS.outline} />
@@ -149,59 +150,61 @@ export const ProfileTab: React.FC = () => {
   );
 };
 
+const S = () => getSpacing();
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   center: { justifyContent: 'center', alignItems: 'center' },
-  welcomeText: { color: COLORS.onSurface, fontSize: 22, fontWeight: 'bold', marginBottom: 8 },
-  loginHint: { color: COLORS.onSurfaceVariant, fontSize: 15, textAlign: 'center', maxWidth: 250, marginBottom: SPACING.lg },
+  welcomeText: { color: COLORS.onSurface, fontSize: rf(22), fontWeight: 'bold', marginBottom: scale(8) },
+  loginHint: { color: COLORS.onSurfaceVariant, fontSize: rf(15), textAlign: 'center', maxWidth: scale(250), marginBottom: S().lg },
   signinBtn: {
-    paddingHorizontal: 32,
-    paddingVertical: 12,
-    borderRadius: 24,
+    paddingHorizontal: scale(32),
+    paddingVertical: scale(12),
+    borderRadius: scale(24),
     backgroundColor: COLORS.primary,
   },
-  signinBtnText: { color: COLORS.onPrimary, fontSize: 16, fontWeight: '600' },
+  signinBtnText: { color: COLORS.onPrimary, fontSize: rf(16), fontWeight: '600' },
 
   // Profile header
   profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.lg,
-    paddingBottom: SPACING.md,
+    paddingHorizontal: S().md,
+    paddingTop: S().lg,
+    paddingBottom: S().md,
   },
   avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: scale(64),
+    height: scale(64),
+    borderRadius: scale(32),
     backgroundColor: COLORS.surface,
   },
   profileInfo: {
     flex: 1,
-    marginLeft: SPACING.md,
+    marginLeft: S().md,
   },
   nickname: {
     color: COLORS.onSurface,
-    fontSize: 20,
+    fontSize: rf(20),
     fontWeight: '700',
   },
   username: {
     color: COLORS.onSurfaceVariant,
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: rf(13),
+    marginTop: scale(2),
   },
   editBtn: {
-    padding: SPACING.sm,
+    padding: S().sm,
   },
 
   // Stats row
   statsRow: {
     flexDirection: 'row',
-    marginHorizontal: SPACING.md,
-    padding: SPACING.md,
-    borderRadius: 12,
+    marginHorizontal: S().md,
+    padding: S().md,
+    borderRadius: scale(12),
     backgroundColor: COLORS.surface,
-    marginBottom: SPACING.md,
+    marginBottom: S().md,
   },
   statItem: {
     flex: 1,
@@ -209,66 +212,66 @@ const styles = StyleSheet.create({
   },
   statValue: {
     color: COLORS.onSurface,
-    fontSize: 18,
+    fontSize: rf(18),
     fontWeight: '700',
   },
   statLabel: {
     color: COLORS.onSurfaceVariant,
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: rf(12),
+    marginTop: scale(2),
   },
   statDivider: {
-    width: 1,
+    width: scale(1),
     backgroundColor: COLORS.outline,
-    marginVertical: 4,
+    marginVertical: scale(4),
   },
 
   // Menu sections
   menuSection: {
-    marginHorizontal: SPACING.md,
-    marginBottom: SPACING.sm,
-    borderRadius: 12,
+    marginHorizontal: S().md,
+    marginBottom: S().sm,
+    borderRadius: scale(12),
     backgroundColor: COLORS.surface,
     overflow: 'hidden',
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: SPACING.md,
+    padding: S().md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.outline,
   },
   menuIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: scale(36),
+    height: scale(36),
+    borderRadius: scale(10),
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.md,
+    marginRight: S().md,
   },
   menuLabel: {
     flex: 1,
     color: COLORS.onSurface,
-    fontSize: 15,
+    fontSize: rf(15),
   },
 
   // Logout
   logoutBtn: {
-    margin: SPACING.lg,
-    padding: SPACING.md,
-    borderRadius: 12,
+    margin: S().lg,
+    padding: S().md,
+    borderRadius: scale(12),
     backgroundColor: COLORS.surface,
     alignItems: 'center',
   },
   logoutText: {
     color: COLORS.error,
-    fontSize: 16,
+    fontSize: rf(16),
     fontWeight: '600',
   },
   version: {
     textAlign: 'center',
     color: COLORS.onSurfaceVariant,
-    fontSize: 12,
-    paddingBottom: SPACING.xl,
+    fontSize: rf(12),
+    paddingBottom: S().xl,
   },
 });

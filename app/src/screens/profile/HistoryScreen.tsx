@@ -67,7 +67,7 @@ export const HistoryScreen: React.FC = () => {
   };
 
   const onItemPress = (item: WatchHistoryItem) => {
-    navigation.navigate('DramaDetail' as never, { dramaId: item.drama_id } as never);
+    navigation.navigate('DramaDetail' as any, { dramaId: item.drama_id });
   };
 
   const renderItem = ({ item }: { item: WatchHistoryItem }) => {

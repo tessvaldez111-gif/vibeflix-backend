@@ -212,7 +212,7 @@ router.get('/ad-reward/today', requireAuth, async (req: AuthRequest, res: Respon
     if (!req.user?.id) return res.status(401).json({ success: false, message: 'Login required' });
 
     const rows = await query(
-      `SELECT COUNT(*) as count, COALESCE(SUM(points), 0) as total_points
+      `SELECT COUNT(*) as count, COALESCE(SUM(reward_points), 0) as total_points
        FROM ad_reward_records
        WHERE user_id = ? AND DATE(created_at) = CURDATE()`,
       [req.user.id]
@@ -257,7 +257,9 @@ router.post('/ad-reward/claim', requireAuth, async (req: AuthRequest, res: Respo
 
     // Check daily count
     const countRows = await query(
-      `SELECT COUNT(*) as count FROM ad_reward_records WHERE user_id = ? AND DATE(created_at) = CURDATE()`,
+      `SELECT COUNT(*) as count, COALESCE(SUM(reward_points), 0) as total_points
+       FROM ad_reward_records
+       WHERE user_id = ? AND DATE(created_at) = CURDATE()`,
       [req.user.id]
     ) as any[];
 
@@ -273,17 +275,24 @@ router.post('/ad-reward/claim', requireAuth, async (req: AuthRequest, res: Respo
         `INSERT INTO ad_reward_records (user_id, drama_id, episode_id, reward_points) VALUES (?, ?, ?, ?)`,
         [req.user.id, req.body.dramaId, req.body.episodeId, pointsPerAd]
       );
+      // MySQL 8.0 compatible: VALUES() still works on 8.0.45 (despite deprecation warning)
       await conn.query(
-        `INSERT INTO user_points (user_id, balance) VALUES (?, ?)
-         ON DUPLICATE KEY UPDATE balance = balance + VALUES(balance)`,
-        [req.user.id, pointsPerAd]
+        `INSERT INTO user_points (user_id, balance, total_earned) VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE balance = balance + VALUES(balance), total_earned = total_earned + VALUES(total_earned)`,
+        [req.user.id, pointsPerAd, pointsPerAd]
       );
+      // Get new balance for the log
+      const balRows = await conn.query('SELECT balance FROM user_points WHERE user_id = ?', [req.user.id]) as any[];
+      const newBalance = balRows?.[0]?.balance || 0;
       await conn.query(
-        `INSERT INTO points_log (user_id, type, amount, description)
-         VALUES (?, 'reward', ?, '观看广告奖励')`,
-        [req.user.id, pointsPerAd]
+        `INSERT INTO points_log (user_id, type, amount, balance_after, description)
+         VALUES (?, 'earn', ?, ?, '观看广告奖励')`,
+        [req.user.id, pointsPerAd, newBalance]
       );
       await conn.commit();
+    } catch (txErr) {
+      await conn.rollback().catch(() => {});
+      throw txErr;
     } finally {
       conn.release();
     }

@@ -2,7 +2,7 @@
   "expo": {
     "name": "DramaFlix",
     "slug": "dramaflix",
-    "version": "1.2.3",
+    "version": "1.4.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -16,7 +16,13 @@
       "bundleIdentifier": "com.dramaflix.app",
       "buildNumber": "1",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSUserNotificationsUsageDescription": "需要推送通知权限以接收新剧更新和观看提醒",
+        "NSCameraUsageDescription": "需要相机权限以拍摄头像或上传内容",
+        "NSPhotoLibraryUsageDescription": "需要照片库权限以选择和上传图片",
+        "NSMicrophoneUsageDescription": "需要麦克风权限以录制语音或视频",
+        "NSLocationWhenInUseUsageDescription": "需要位置权限以提供本地化内容推荐",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "需要后台位置权限以持续提供本地化推荐"
       }
     },
     "android": {
@@ -25,8 +31,20 @@
         "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "package": "com.dramaflix.app",
-      "versionCode": 6,
-      "usesCleartextTraffic": true
+      "versionCode": 17,
+      "usesCleartextTraffic": true,
+      "permissions": [
+        "POST_NOTIFICATIONS",
+        "CAMERA",
+        "READ_MEDIA_IMAGES",
+        "READ_MEDIA_VIDEO",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "RECORD_AUDIO",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",

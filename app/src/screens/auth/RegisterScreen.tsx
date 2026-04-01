@@ -6,7 +6,8 @@ import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores';
 import { authService } from '../../services';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
-import { COLORS, SPACING } from '../../utils/constants';
+import { COLORS } from '../../utils/constants';
+import { rf, scale, getSpacing } from '../../utils/responsive';
 
 const COUNTDOWN_SECONDS = 60;
 
@@ -14,6 +15,9 @@ export const RegisterScreen: React.FC = () => {
   const navigation = useNavigation();
   const { register } = useAuthStore();
   const { t } = useTranslation();
+
+  // Dynamic spacing
+  const sp = getSpacing();
 
   const [username, setUsername] = useState('');
   const [nickname, setNickname] = useState('');
@@ -114,14 +118,18 @@ export const RegisterScreen: React.FC = () => {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.inner}>
+      <View style={[styles.inner, { paddingHorizontal: sp.xl }]}>
         <Text style={styles.logo}>{t('app_name')}</Text>
         <Text style={styles.subtitle}>{t('register')}</Text>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? <Text style={[styles.error, { marginBottom: sp.sm }]}>{error}</Text> : null}
 
         <TextInput
-          style={styles.input}
+          style={[styles.input, {
+            paddingHorizontal: sp.md,
+            paddingVertical: sp.md,
+            marginBottom: sp.md,
+          }]}
           placeholder={t('username')}
           placeholderTextColor={COLORS.onSurfaceVariant}
           value={username}
@@ -131,7 +139,11 @@ export const RegisterScreen: React.FC = () => {
         />
 
         <TextInput
-          style={styles.input}
+          style={[styles.input, {
+            paddingHorizontal: sp.md,
+            paddingVertical: sp.md,
+            marginBottom: sp.md,
+          }]}
           placeholder={t('nickname')}
           placeholderTextColor={COLORS.onSurfaceVariant}
           value={nickname}
@@ -140,7 +152,11 @@ export const RegisterScreen: React.FC = () => {
         />
 
         <TextInput
-          style={styles.input}
+          style={[styles.input, {
+            paddingHorizontal: sp.md,
+            paddingVertical: sp.md,
+            marginBottom: sp.md,
+          }]}
           placeholder={t('email')}
           placeholderTextColor={COLORS.onSurfaceVariant}
           value={email}
@@ -151,9 +167,13 @@ export const RegisterScreen: React.FC = () => {
         />
 
         {/* Email verification code row */}
-        <View style={styles.codeRow}>
+        <View style={[styles.codeRow, { marginBottom: sp.md }]}>
           <TextInput
-            style={[styles.input, styles.codeInput]}
+            style={[styles.input, styles.codeInput, {
+              paddingHorizontal: sp.md,
+              paddingVertical: sp.md,
+              marginRight: sp.sm,
+            }]}
             placeholder={t('email_code')}
             placeholderTextColor={COLORS.onSurfaceVariant}
             value={emailCode}
@@ -162,7 +182,10 @@ export const RegisterScreen: React.FC = () => {
             maxLength={6}
           />
           <TouchableOpacity
-            style={[styles.sendCodeBtn, !canSendCode && styles.sendCodeBtnDisabled]}
+            style={[styles.sendCodeBtn, !canSendCode && styles.sendCodeBtnDisabled, {
+              paddingHorizontal: sp.md,
+              paddingVertical: sp.md,
+            }]}
             onPress={onSendCode}
             disabled={!canSendCode}
           >
@@ -177,7 +200,11 @@ export const RegisterScreen: React.FC = () => {
         </View>
 
         <TextInput
-          style={styles.input}
+          style={[styles.input, {
+            paddingHorizontal: sp.md,
+            paddingVertical: sp.md,
+            marginBottom: sp.md,
+          }]}
           placeholder={t('password')}
           placeholderTextColor={COLORS.onSurfaceVariant}
           value={password}
@@ -186,7 +213,11 @@ export const RegisterScreen: React.FC = () => {
         />
 
         <TextInput
-          style={styles.input}
+          style={[styles.input, {
+            paddingHorizontal: sp.md,
+            paddingVertical: sp.md,
+            marginBottom: sp.md,
+          }]}
           placeholder={t('confirm_password')}
           placeholderTextColor={COLORS.onSurfaceVariant}
           value={confirmPassword}
@@ -197,13 +228,13 @@ export const RegisterScreen: React.FC = () => {
         {loading ? (
           <LoadingSpinner />
         ) : (
-          <TouchableOpacity style={styles.registerBtn} onPress={onRegister}>
+          <TouchableOpacity style={[styles.registerBtn, { paddingVertical: sp.md, marginTop: sp.sm }]} onPress={onRegister}>
             <Text style={styles.registerBtnText}>{t('sign_up')}</Text>
           </TouchableOpacity>
         )}
 
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.loginLink}>{t('has_account')} {t('sign_in')}</Text>
+          <Text style={[styles.loginLink, { marginTop: sp.lg }]}>{t('has_account')} {t('sign_in')}</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -212,37 +243,30 @@ export const RegisterScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: SPACING.xl },
-  logo: { fontSize: 36, fontWeight: 'bold', color: COLORS.primaryLight, textAlign: 'center', marginBottom: 4 },
-  subtitle: { color: COLORS.onSurfaceVariant, fontSize: 16, textAlign: 'center', marginBottom: SPACING.xl },
-  error: { color: COLORS.error, fontSize: 14, textAlign: 'center', marginBottom: SPACING.sm },
+  inner: { flex: 1, justifyContent: 'center' },
+  logo: { fontSize: rf(36), fontWeight: 'bold', color: COLORS.primaryLight, textAlign: 'center', marginBottom: scale(4) },
+  subtitle: { color: COLORS.onSurfaceVariant, fontSize: rf(16), textAlign: 'center', marginBottom: scale(32) },
+  error: { color: COLORS.error, fontSize: rf(14), textAlign: 'center' },
   input: {
     backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
+    borderRadius: scale(12),
     color: COLORS.onSurface,
-    fontSize: 16,
-    marginBottom: SPACING.md,
+    fontSize: rf(16),
     borderWidth: 1,
     borderColor: COLORS.outline,
   },
   codeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SPACING.md,
   },
   codeInput: {
     flex: 1,
     marginBottom: 0,
-    marginRight: SPACING.sm,
   },
   sendCodeBtn: {
     backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
-    minHeight: 50,
+    borderRadius: scale(12),
+    minHeight: scale(50),
     justifyContent: 'center',
   },
   sendCodeBtnDisabled: {
@@ -250,16 +274,14 @@ const styles = StyleSheet.create({
   },
   sendCodeText: {
     color: COLORS.onPrimary,
-    fontSize: 13,
+    fontSize: rf(13),
     fontWeight: '600',
   },
   registerBtn: {
     backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingVertical: SPACING.md,
+    borderRadius: scale(12),
     alignItems: 'center',
-    marginTop: SPACING.sm,
   },
-  registerBtnText: { color: COLORS.onPrimary, fontSize: 17, fontWeight: '600' },
-  loginLink: { color: COLORS.primaryLight, fontSize: 15, textAlign: 'center', marginTop: SPACING.lg },
+  registerBtnText: { color: COLORS.onPrimary, fontSize: rf(17), fontWeight: '600' },
+  loginLink: { color: COLORS.primaryLight, fontSize: rf(15), textAlign: 'center' },
 });

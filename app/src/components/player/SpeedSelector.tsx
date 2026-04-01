@@ -3,6 +3,7 @@ import React, { memo, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { PLAYBACK_SPEEDS, type PlaybackSpeed } from '../../stores/playerStore';
 import { COLORS } from '../../utils/constants';
+import { scale, rf } from '../../utils/responsive';
 
 interface Props {
   currentSpeed: PlaybackSpeed;
@@ -56,29 +57,29 @@ const styles = StyleSheet.create({
   },
   container: {
     backgroundColor: 'rgba(30,28,40,0.95)',
-    borderRadius: 16,
-    padding: 20,
-    width: 260,
+    borderRadius: scale(16),
+    padding: scale(20),
+    width: scale(260),
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
   },
   title: {
     color: '#FFF',
-    fontSize: 15,
+    fontSize: rf(15),
     fontWeight: '600',
-    marginBottom: 16,
+    marginBottom: scale(16),
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 10,
+    gap: scale(10),
   },
   speedBtn: {
-    width: 70,
-    height: 38,
-    borderRadius: 10,
+    width: scale(70),
+    height: scale(38),
+    borderRadius: scale(10),
     backgroundColor: 'rgba(255,255,255,0.1)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -88,7 +89,7 @@ const styles = StyleSheet.create({
   },
   speedText: {
     color: 'rgba(255,255,255,0.7)',
-    fontSize: 15,
+    fontSize: rf(15),
     fontWeight: '600',
   },
   speedTextActive: {

@@ -3,3 +3,13 @@ export { User, AuthResponse, LoginRequest, RegisterRequest, SendCodeRequest, Sen
 export { PointsInfo, PointsLogItem, RechargePackage, Order } from './order';
 export { ApiResponse, ApiError } from './api';
 export { Comment, Danmaku, AdRewardRecord } from './comment';
+export {
+  PermissionStatus,
+  AppPermission,
+  PermissionResult,
+  PermissionRequestResult,
+  DeviceInfo,
+  PermissionConfig,
+  PermissionMessages,
+  UsePermissionReturn,
+} from './permission';
