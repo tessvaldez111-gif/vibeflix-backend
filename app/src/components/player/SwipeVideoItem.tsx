@@ -193,6 +193,8 @@ const SwipeVideoItem: React.FC<Props> = memo(({
 
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playDelayTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadTimeoutTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const errorRetryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { t } = useTranslation();
   const loadPoints = useWalletStore(state => state.loadPoints);
@@ -222,50 +224,69 @@ const SwipeVideoItem: React.FC<Props> = memo(({
     return () => { if (controlsTimer.current) clearTimeout(controlsTimer.current); };
   }, [isPlaying, isLoading, hasError]);
 
-  // ===== CORE LIFECYCLE: activate → create player → preload → play =====
-  // =====                deactivate → pause → unbind → destroy (unmount) =====
+  // ===== CORE LIFECYCLE: activate → destroy old → wait → create new → play =====
+  // =====                deactivate → pause → destroy → unbind =====
   useEffect(() => {
     if (isActive) {
-      // Entering active: reset state for fresh player
+      // --- ENTERING ACTIVE ---
+      // Step 1: Force-destroy the previous player (prevents Surface leak)
+      VideoPlayManager.forceDestroy();
+
+      // Step 2: Reset ALL state to clean slate
       setIsLoading(true);
       setHasError(false);
       setDecoderReady(false);
       setCurrentTime(0);
       setShowDanmakuInput(false);
       setLongPressSeek(null);
+      setVideoVolume(1);
       if (longPressTimer.current) { clearInterval(longPressTimer.current); longPressTimer.current = null; }
+      if (loadTimeoutTimer.current) { clearTimeout(loadTimeoutTimer.current); loadTimeoutTimer.current = null; }
+      if (errorRetryTimer.current) { clearTimeout(errorRetryTimer.current); errorRetryTimer.current = null; }
+      if (playDelayTimer.current) { clearTimeout(playDelayTimer.current); playDelayTimer.current = null; }
       videoRef.current = null; // clear ref — new instance will be created by mount
 
-      if (playDelayTimer.current) {
-        clearTimeout(playDelayTimer.current);
-        playDelayTimer.current = null;
-      }
-
-      // Delay play slightly to allow ExoPlayer surface to initialize
+      // Step 3: Wait for ExoPlayer to release resources (CRITICAL — prevents black screen)
       playDelayTimer.current = setTimeout(() => {
         setIsPlaying(true);
-      }, 350);
+
+        // Step 4: Start load timeout protection (5s — if still loading, retry)
+        loadTimeoutTimer.current = setTimeout(() => {
+          // If still loading after 5s, force retry
+          setIsLoading(false);
+          setHasError(false);
+          setDecoderReady(false);
+          // Small delay then retry
+          errorRetryTimer.current = setTimeout(() => {
+            setIsLoading(true);
+            setIsPlaying(true);
+          }, 300);
+        }, 5000);
+      }, 400); // 400ms delay — enough for ExoPlayer surface release
     } else {
-      // Leaving active: pause immediately, release from global manager
-      if (playDelayTimer.current) {
-        clearTimeout(playDelayTimer.current);
-        playDelayTimer.current = null;
-      }
+      // --- LEAVING ACTIVE ---
+      // Cancel all pending timers
+      if (playDelayTimer.current) { clearTimeout(playDelayTimer.current); playDelayTimer.current = null; }
+      if (loadTimeoutTimer.current) { clearTimeout(loadTimeoutTimer.current); loadTimeoutTimer.current = null; }
+      if (errorRetryTimer.current) { clearTimeout(errorRetryTimer.current); errorRetryTimer.current = null; }
+
+      // Pause immediately
       setIsPlaying(false);
       setDecoderReady(false);
       setShowDanmakuInput(false);
       setLongPressSeek(null);
+      setVideoVolume(0);
       if (longPressTimer.current) { clearInterval(longPressTimer.current); longPressTimer.current = null; }
-      // Release from global manager — this unbinds the old player
+
+      // Release from global manager — unbinds + stops + seeks(0) the player
       VideoPlayManager.releaseCurrent();
       videoRef.current = null; // release reference
     }
 
     return () => {
-      if (playDelayTimer.current) {
-        clearTimeout(playDelayTimer.current);
-        playDelayTimer.current = null;
-      }
+      if (playDelayTimer.current) { clearTimeout(playDelayTimer.current); playDelayTimer.current = null; }
+      if (loadTimeoutTimer.current) { clearTimeout(loadTimeoutTimer.current); loadTimeoutTimer.current = null; }
+      if (errorRetryTimer.current) { clearTimeout(errorRetryTimer.current); errorRetryTimer.current = null; }
     };
   }, [isActive]);
 
@@ -315,6 +336,9 @@ const SwipeVideoItem: React.FC<Props> = memo(({
     setHasError(false);
     setDuration(d.duration);
     setDecoderReady(true);
+    // Clear load timeout — video loaded successfully
+    if (loadTimeoutTimer.current) { clearTimeout(loadTimeoutTimer.current); loadTimeoutTimer.current = null; }
+    if (errorRetryTimer.current) { clearTimeout(errorRetryTimer.current); errorRetryTimer.current = null; }
     // Bind to global manager when decoder is ready
     if (videoRef.current) {
       VideoPlayManager.bindPlayer(videoRef.current);
@@ -333,9 +357,24 @@ const SwipeVideoItem: React.FC<Props> = memo(({
   }, [isSeeking, duration, onProgressUpdate]);
 
   const handleError = useCallback(() => {
-    console.log(`[SwipeVideoItem] onError ep=${data.episode_number}`);
+    console.log(`[SwipeVideoItem] onError ep=${data.episode_number}, auto-retry in 600ms`);
     setIsLoading(false);
     setHasError(true);
+    // Auto-retry after 600ms — silently recover without user intervention
+    if (errorRetryTimer.current) { clearTimeout(errorRetryTimer.current); }
+    errorRetryTimer.current = setTimeout(() => {
+      console.log(`[SwipeVideoItem] auto-retrying ep=${data.episode_number}`);
+      // Full reset: destroy old player instance, clear state, try again
+      VideoPlayManager.forceDestroy();
+      setHasError(false);
+      setDecoderReady(false);
+      setCurrentTime(0);
+      setIsLoading(true);
+      // Small delay to let ExoPlayer fully release before remounting
+      setTimeout(() => {
+        setIsPlaying(true);
+      }, 200);
+    }, 600);
   }, [data.episode_number]);
 
   const showControlsFn = useCallback(() => {
@@ -450,10 +489,16 @@ const SwipeVideoItem: React.FC<Props> = memo(({
   }, [data.drama_id, data.drama_title, data.episode_number, onShare]);
 
   const retryPlay = useCallback(() => {
+    // Full destroy + reset before retrying
+    VideoPlayManager.forceDestroy();
     setHasError(false);
     setIsLoading(true);
     setDecoderReady(false);
-    setIsPlaying(true);
+    setCurrentTime(0);
+    // Wait a frame for ExoPlayer to release, then retry
+    setTimeout(() => {
+      setIsPlaying(true);
+    }, 200);
   }, []);
 
   const statusBarPadTop = insets.top > 0 ? insets.top : (Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0);
@@ -492,6 +537,20 @@ const SwipeVideoItem: React.FC<Props> = memo(({
       setShowDanmakuInput(false);
     }
   }, [controlsVisible]);
+
+  // Component unmount: full cleanup — release all timers and global player
+  useEffect(() => {
+    return () => {
+      // Release global player on unmount
+      VideoPlayManager.forceDestroy();
+      // Clear ALL timers
+      if (controlsTimer.current) { clearTimeout(controlsTimer.current); controlsTimer.current = null; }
+      if (playDelayTimer.current) { clearTimeout(playDelayTimer.current); playDelayTimer.current = null; }
+      if (loadTimeoutTimer.current) { clearTimeout(loadTimeoutTimer.current); loadTimeoutTimer.current = null; }
+      if (errorRetryTimer.current) { clearTimeout(errorRetryTimer.current); errorRetryTimer.current = null; }
+      if (longPressTimer.current) { clearInterval(longPressTimer.current); longPressTimer.current = null; }
+    };
+  }, []);
 
   // ===== Vertical swipe PanResponder for gesture-driven transition =====
   const panResponder = useMemo(() => {

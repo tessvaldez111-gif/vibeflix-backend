@@ -15,6 +15,7 @@ import type { VideoRef } from 'react-native-video';
 export interface IVideoPlayer {
   pause(): void;
   seek(seconds: number | number): void;
+  restoreUserInterfaceForPictureInPictureStop?(): Promise<void>;
 }
 
 class VideoPlayManager {
@@ -29,7 +30,9 @@ class VideoPlayManager {
   /** Pause the currently active player (does NOT unbind) */
   pauseAll() {
     if (this.currentPlayer) {
-      this.currentPlayer.pause();
+      try {
+        this.currentPlayer.pause();
+      } catch (_) {}
     }
   }
 
@@ -37,11 +40,18 @@ class VideoPlayManager {
   releaseCurrent() {
     if (this.currentPlayer) {
       try {
-        // Seek to beginning to reset ExoPlayer internal state
+        // Full stop + seek to 0 to force ExoPlayer to release the Surface
+        this.currentPlayer.pause();
         this.currentPlayer.seek(0);
       } catch (_) {}
       this.currentPlayer = null;
     }
+  }
+
+  /** Force unmount: release player AND nullify the ref so the component
+   *  knows it needs to remount a fresh Video element */
+  forceDestroy() {
+    this.releaseCurrent();
   }
 
   /** Check if there is an active player */
