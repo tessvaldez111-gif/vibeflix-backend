@@ -1,0 +1,124 @@
+src/components/player/SwipeVideoItem.tsx(562,6): error TS17008: JSX element 'View' has no corresponding closing tag.
+src/components/player/SwipeVideoItem.tsx(847,7): error TS17015: Expected corresponding closing tag for JSX fragment.
+src/components/player/SwipeVideoItem.tsx(847,11): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/components/player/SwipeVideoItem.tsx(849,1): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(852,28): error TS1003: Identifier expected.
+src/components/player/SwipeVideoItem.tsx(852,30): error TS1005: '...' expected.
+src/components/player/SwipeVideoItem.tsx(852,34): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(852,89): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/components/player/SwipeVideoItem.tsx(852,96): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(852,97): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/components/player/SwipeVideoItem.tsx(853,39): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/components/player/SwipeVideoItem.tsx(862,16): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(862,68): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(862,101): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(865,20): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(865,50): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(866,25): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(866,33): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(867,27): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(867,89): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(868,26): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(868,85): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(873,19): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(877,3): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(879,10): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(885,3): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(886,20): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(886,47): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(887,21): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(887,69): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(891,13): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(899,3): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(900,26): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(900,38): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(901,31): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(901,44): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(903,11): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(906,3): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(908,13): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(913,3): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(916,22): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(916,99): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(917,26): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(917,112): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(918,31): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(918,136): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(919,23): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(919,69): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(920,19): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(920,46): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(921,22): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(921,68): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(922,19): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(922,84): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(923,25): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(923,38): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(924,33): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(924,136): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(925,20): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(925,66): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(928,28): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(928,208): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(929,26): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(929,75): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(932,21): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(932,90): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(933,32): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(933,139): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(934,21): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(934,67): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(937,27): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(937,80): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(938,26): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(938,62): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(939,25): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(939,49): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(940,28): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(940,50): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(941,23): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(941,108): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(942,29): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(942,51): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(946,13): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(949,3): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(951,18): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(953,3): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(954,21): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(954,48): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(955,28): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(955,74): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(956,24): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(956,89): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(957,30): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(957,75): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(959,15): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(962,3): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(963,28): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(963,52): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(964,29): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(964,110): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(965,21): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(965,35): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(966,22): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(966,36): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(969,26): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(969,133): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(970,25): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(970,149): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(972,13): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(974,98): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(974,113): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(975,3): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(976,30): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(976,42): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(980,18): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(982,3): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(984,9): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(987,3): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(989,22): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(991,3): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(992,27): error TS1005: '}' expected.
+src/components/player/SwipeVideoItem.tsx(992,73): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(993,1): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/player/SwipeVideoItem.tsx(996,1): error TS1005: '</' expected.

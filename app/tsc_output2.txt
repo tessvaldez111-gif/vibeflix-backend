@@ -1,0 +1,17 @@
+src/i18n/index.ts(12,24): error TS2351: This expression is not constructable.
+  Type 'typeof import("C:/Users/1/WorkBuddy/20260324180400/app/node_modules/react-native-mmkv/lib/index")' has no construct signatures.
+src/i18n/index.ts(21,24): error TS2351: This expression is not constructable.
+  Type 'typeof import("C:/Users/1/WorkBuddy/20260324180400/app/node_modules/react-native-mmkv/lib/index")' has no construct signatures.
+src/screens/drama/PlayerScreen.tsx(149,49): error TS2339: Property 'duration' does not exist on type 'Readonly<{ currentTime: number; playableDuration: number; seekableDuration: number; }>'.
+src/screens/drama/PlayerScreen.tsx(293,13): error TS2322: Type '{ ref: RefObject<VideoRef | null>; source: { uri: string; }; style: {}[]; resizeMode: ResizeMode.CONTAIN; onLoad: (data: Readonly<{ currentTime: number; duration: number; naturalSize: Readonly<...>; audioTracks: { ...; }[]; textTracks: { ...; }[]; videoTracks: { ...; }[]; }>) => void; ... 10 more ...; textureView: b...' is not assignable to type 'IntrinsicAttributes & ReactVideoProps & RefAttributes<VideoRef>'.
+  Property 'textureView' does not exist on type 'IntrinsicAttributes & ReactVideoProps & RefAttributes<VideoRef>'. Did you mean 'useTextureView'?
+src/screens/profile/HistoryScreen.tsx(70,25): error TS2345: Argument of type '[any, { dramaId: number; }]' is not assignable to parameter of type 'never'.
+src/stores/authStore.ts(53,76): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/stores/authStore.ts(53,83): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/stores/authStore.ts(69,27): error TS2339: Property 'set' does not exist on type 'AuthState'.
+src/utils/permissionManager.ts(155,32): error TS2339: Property 'Model' does not exist on type 'PlatformConstants & { forceTouchAvailable: boolean; interfaceIdiom: string; osVersion: string; systemName: string; isMacCatalyst?: boolean | undefined; }'.
+src/utils/permissionManager.ts(207,11): error TS2322: Type 'PermissionExpiration' is not assignable to type 'string'.
+  Type 'number' is not assignable to type 'string'.
+src/utils/permissionManager.ts(208,34): error TS2339: Property 'allowsLimitedAccess' does not exist on type '{ status: IosAuthorizationStatus; allowsDisplayInNotificationCenter: boolean | null; allowsDisplayOnLockScreen: boolean | null; allowsDisplayInCarPlay: boolean | null; ... 7 more ...; allowsAnnouncements: boolean | null; }'.

@@ -1,0 +1,1 @@
+ »   Error: command build:logs not found

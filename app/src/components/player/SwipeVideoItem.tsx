@@ -844,6 +844,7 @@ const SwipeVideoItem: React.FC<Props> = memo(({
         onClose={() => setShowEpisodes(false)}
       />
 
+      </>
     </View>
   );
 });
